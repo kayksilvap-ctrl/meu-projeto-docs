@@ -3,10 +3,10 @@ import * as components from 'vuetify/components'
 import * as directives from 'vuetify/directives'
 import 'vuetify/styles'
 
-const marrom = '#8B4513'
+const vermelho = '#D90445'
 const dourado = '#FFD700'
-const marromClaro = '#A0522D'
-const marromEscuro = '#5C2E0A'
+const cinzaAsa = '#D3D3D3'
+const bege = '#F2EFE6'
 
 export default createVuetify({
   components,
@@ -17,18 +17,18 @@ export default createVuetify({
       anjoGuarda: {
         dark: false,
         colors: {
-          primary: marrom,
+          primary: vermelho,
           secondary: dourado,
-          accent: '#FAF0E6',
-          error: '#D32F2F',
-          info: '#1976D2',
-          success: '#388E3C',
-          warning: '#F57C00',
-          'primary-darken-1': marromEscuro,
-          'primary-lighten-1': marromClaro,
+          accent: bege,
+          error: '#C62828',
+          info: '#1565C0',
+          success: '#2E7D32',
+          warning: '#EF6C00',
+          'primary-darken-1': '#B80338',
+          'primary-lighten-1': '#E83E6B',
           'secondary-darken-1': '#B8960C',
           surface: '#FFFFFF',
-          background: '#f5f0eb'
+          background: bege
         }
       }
     }

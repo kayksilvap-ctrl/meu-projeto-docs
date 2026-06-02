@@ -6,15 +6,14 @@
       </v-app-bar-nav-icon>
     </template>
 
-    <v-app-bar-title class="nav-title">
-      <v-icon class="mr-2" color="#FFD700">mdi-shield-crown</v-icon>
-      <span class="text-white font-weight-bold">Anjo da Guarda</span>
-      <span class="text-gold ml-2 d-none d-sm-inline">— Sistema de Chamada</span>
+    <v-app-bar-title class="nav-title d-flex align-center">
+      <LogoAnjo :size="32" :showText="false" class="mr-2" />
+      <span class="text-white font-weight-bold" style="font-size:1.1rem">Anjo da Guarda</span>
+      <span class="text-gold ml-2 d-none d-sm-inline" style="font-size:0.85rem">— Sistema de Chamada</span>
     </v-app-bar-title>
 
     <template v-slot:append>
       <div class="d-flex align-center">
-        <!-- Navigation links for desktop -->
         <v-btn
           v-for="item in navItems"
           :key="item.route"
@@ -29,7 +28,6 @@
 
         <v-divider vertical class="mx-2 border-white opacity-50 d-none d-md-flex" inset></v-divider>
 
-        <!-- Action buttons -->
         <v-btn
           icon
           variant="flat"
@@ -39,7 +37,7 @@
           title="Adicionar Aluno"
           size="small"
         >
-          <v-icon color="#8B4513">mdi-account-plus</v-icon>
+          <v-icon color="#D90445">mdi-account-plus</v-icon>
           <v-tooltip activator="parent" location="bottom">Adicionar Aluno</v-tooltip>
         </v-btn>
 
@@ -52,7 +50,7 @@
           title="Exportar / Importar"
           size="small"
         >
-          <v-icon color="#8B4513">mdi-file-import-outline</v-icon>
+          <v-icon color="#D90445">mdi-file-import-outline</v-icon>
           <v-tooltip activator="parent" location="bottom">Exportar/Importar</v-tooltip>
         </v-btn>
 
@@ -65,7 +63,7 @@
           title="Estatísticas"
           size="small"
         >
-          <v-icon color="#8B4513">mdi-chart-bar</v-icon>
+          <v-icon color="#D90445">mdi-chart-bar</v-icon>
           <v-tooltip activator="parent" location="bottom">Estatísticas</v-tooltip>
         </v-btn>
 
@@ -85,7 +83,6 @@
     </template>
   </v-app-bar>
 
-  <!-- Mobile Navigation Drawer -->
   <v-navigation-drawer
     v-model="drawer"
     temporary
@@ -93,7 +90,7 @@
     class="pa-2 mobile-drawer"
   >
     <div class="d-flex align-center pa-4 drawer-header mb-4">
-      <v-icon color="#FFD700" size="36" class="mr-2">mdi-shield-crown</v-icon>
+      <LogoAnjo :size="40" :showText="false" class="mr-2" />
       <div>
         <div class="font-weight-bold text-white" style="font-size: 1.1rem">Anjo da Guarda</div>
         <div class="text-gold" style="font-size: 0.8rem">Sistema de Chamada</div>
@@ -119,6 +116,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRoute } from 'vue-router'
+import LogoAnjo from './LogoAnjo.vue'
 
 defineEmits(['add-aluno', 'import-export', 'estatisticas', 'reset'])
 
@@ -139,7 +137,7 @@ function toggleDrawer() {
 
 <style scoped>
 .nav-bar {
-  background: linear-gradient(135deg, #8B4513 0%, #5C2E0A 100%) !important;
+  background: linear-gradient(135deg, #D90445 0%, #B80338 100%) !important;
   border-bottom: 2px solid #FFD700;
 }
 
@@ -155,7 +153,7 @@ function toggleDrawer() {
 }
 
 .nav-link {
-  color: rgba(255, 255, 255, 0.8) !important;
+  color: rgba(255, 255, 255, 0.85) !important;
   font-size: 0.85rem;
   text-transform: none;
   font-weight: 500;
@@ -184,7 +182,7 @@ function toggleDrawer() {
 }
 
 .mobile-drawer {
-  background: linear-gradient(180deg, #8B4513 0%, #5C2E0A 100%) !important;
+  background: linear-gradient(180deg, #D90445 0%, #B80338 100%) !important;
 }
 
 .drawer-header {
