@@ -1,44 +1,22 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import DashboardView from '../views/DashboardView.vue'
-import AlunosView from '../views/AlunosView.vue'
-import ChamadaView from '../views/ChamadaView.vue'
-import SalasView from '../views/SalasView.vue'
+import CriancasView from '../views/CriancasView.vue'
+import TurmasView from '../views/TurmasView.vue'
+import FrequenciaView from '../views/FrequenciaView.vue'
+import RelatoriosView from '../views/RelatoriosView.vue'
+import ConfiguracoesView from '../views/ConfiguracoesView.vue'
 
 const routes = [
-  {
-    path: '/',
-    name: 'Dashboard',
-    component: DashboardView,
-    meta: { title: 'Dashboard' }
-  },
-  {
-    path: '/salas',
-    name: 'Salas',
-    component: SalasView,
-    meta: { title: 'Salas' }
-  },
-  {
-    path: '/alunos',
-    name: 'Alunos',
-    component: AlunosView,
-    meta: { title: 'Alunos' }
-  },
-  {
-    path: '/chamada',
-    name: 'Chamada',
-    component: ChamadaView,
-    meta: { title: 'Chamada Diária' }
-  }
+  { path: '/', component: DashboardView, meta: { title: 'Dashboard' } },
+  { path: '/criancas', component: CriancasView, meta: { title: 'Crianças' } },
+  { path: '/responsaveis', component: CriancasView, meta: { title: 'Responsáveis' } },
+  { path: '/turmas', component: TurmasView, meta: { title: 'Turmas' } },
+  { path: '/frequencia', component: FrequenciaView, meta: { title: 'Frequência' } },
+  { path: '/relatorios', component: RelatoriosView, meta: { title: 'Relatórios' } },
+  { path: '/configuracoes', component: ConfiguracoesView, meta: { title: 'Configurações' } },
 ]
 
-const router = createRouter({
-  history: createWebHistory(),
-  routes
-})
-
-router.beforeEach((to, from, next) => {
-  document.title = `${to.meta.title || 'Sistema de Chamada'} | Anjo da Guarda`
-  next()
-})
+const router = createRouter({ history: createWebHistory(), routes })
+router.beforeEach((to) => { document.title = `${to.meta.title} | Anjo da Guarda` })
 
 export default router

@@ -2,22 +2,20 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 
-const alunosRouter = require('./routes/alunos');
-const chamadaRouter = require('./routes/chamada');
-const salasRouter = require('./routes/salas');
+const turmasRouter = require('./routes/turmas');
+const criancasRouter = require('./routes/criancas');
+const frequenciasRouter = require('./routes/frequencias');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middlewares
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// Rotas
-app.use('/api/alunos', alunosRouter);
-app.use('/api/chamadas', chamadaRouter);
-app.use('/api/salas', salasRouter);
+app.use('/api/turmas', turmasRouter);
+app.use('/api/criancas', criancasRouter);
+app.use('/api/frequencias', frequenciasRouter);
 
 // Rota de teste
 app.get('/api/health', (req, res) => {
