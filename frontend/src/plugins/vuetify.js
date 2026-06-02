@@ -7,7 +7,6 @@ const marrom = '#8B4513'
 const dourado = '#FFD700'
 const marromClaro = '#A0522D'
 const marromEscuro = '#5C2E0A'
-const douradoClaro = '#FFF8DC'
 
 export default createVuetify({
   components,
@@ -20,7 +19,7 @@ export default createVuetify({
         colors: {
           primary: marrom,
           secondary: dourado,
-          accent: douradoClaro,
+          accent: '#FAF0E6',
           error: '#D32F2F',
           info: '#1976D2',
           success: '#388E3C',
@@ -28,28 +27,34 @@ export default createVuetify({
           'primary-darken-1': marromEscuro,
           'primary-lighten-1': marromClaro,
           'secondary-darken-1': '#B8960C',
-          'surface': '#FFFFFF',
-          'background': '#f5f0eb'
+          surface: '#FFFFFF',
+          background: '#f5f0eb'
         }
       }
     }
   },
   defaults: {
     VBtn: {
-      rounded: 'lg',
-      elevation: 2
+      rounded: 'pill',
+      elevation: 0,
+      style: 'text-transform: none; font-weight: 500; letter-spacing: 0;'
     },
     VCard: {
-      rounded: 'lg',
-      elevation: 3
+      rounded: 'xl',
+      elevation: 1
     },
     VTextField: {
       variant: 'outlined',
-      density: 'comfortable'
+      density: 'compact',
+      hideDetails: 'auto'
     },
     VSelect: {
       variant: 'outlined',
-      density: 'comfortable'
+      density: 'compact',
+      hideDetails: 'auto'
+    },
+    VDialog: {
+      contentClass: 'rounded-xl'
     }
   }
 })

@@ -4,6 +4,7 @@ const path = require('path');
 
 const alunosRouter = require('./routes/alunos');
 const chamadaRouter = require('./routes/chamada');
+const salasRouter = require('./routes/salas');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -16,6 +17,7 @@ app.use(express.urlencoded({ extended: true }));
 // Rotas
 app.use('/api/alunos', alunosRouter);
 app.use('/api/chamadas', chamadaRouter);
+app.use('/api/salas', salasRouter);
 
 // Rota de teste
 app.get('/api/health', (req, res) => {

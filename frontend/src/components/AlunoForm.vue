@@ -20,6 +20,19 @@
         <v-form ref="formRef" v-model="valid" @submit.prevent="salvar">
           <v-row>
             <v-col cols="12">
+              <v-select
+                v-model="form.sala_id"
+                :items="salas"
+                item-title="nome"
+                item-value="id"
+                label="Sala (opcional)"
+                prepend-inner-icon="mdi-door-open"
+                clearable
+                :loading="loadingSalas"
+              ></v-select>
+            </v-col>
+
+            <v-col cols="12">
               <v-text-field
                 v-model="form.nome"
                 label="Nome do Aluno *"
@@ -125,13 +138,26 @@ const formRef = ref(null)
 const valid = ref(false)
 const loading = ref(false)
 
+const salas = ref([])
+const loadingSalas = ref(false)
+
 const form = reactive({
   nome: '',
   idade: null,
   responsavel: '',
   endereco: '',
-  telefone: ''
+  telefone: '',
+  sala_id: null
 })
+
+async function carregarSalas() {
+  loadingSalas.value = true
+  try {
+    const r = await api.getSalas()
+    salas.value = r.data || []
+  } catch (e) { console.error(e) }
+  finally { loadingSalas.value = false }
+}
 
 watch(() => props.aluno, (novo) => {
   if (novo) {
@@ -140,10 +166,14 @@ watch(() => props.aluno, (novo) => {
     form.responsavel = novo.responsavel || ''
     form.endereco = novo.endereco || ''
     form.telefone = novo.telefone || ''
+    form.sala_id = novo.sala_id || null
   } else {
     resetForm()
   }
 }, { immediate: true })
+
+// Carregar salas quando o diálogo abrir
+watch(dialogVisible, (v) => { if (v) carregarSalas() })
 
 function resetForm() {
   form.nome = ''
@@ -151,6 +181,7 @@ function resetForm() {
   form.responsavel = ''
   form.endereco = ''
   form.telefone = ''
+  form.sala_id = null
 }
 
 function fechar() {
@@ -168,7 +199,8 @@ async function salvar() {
       idade: form.idade ? parseInt(form.idade) : null,
       responsavel: form.responsavel || null,
       endereco: form.endereco || null,
-      telefone: form.telefone || null
+      telefone: form.telefone || null,
+      sala_id: form.sala_id || null
     }
 
     if (editando.value) {

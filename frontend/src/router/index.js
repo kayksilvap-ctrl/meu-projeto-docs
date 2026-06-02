@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import DashboardView from '../views/DashboardView.vue'
 import AlunosView from '../views/AlunosView.vue'
 import ChamadaView from '../views/ChamadaView.vue'
+import SalasView from '../views/SalasView.vue'
 
 const routes = [
   {
@@ -11,10 +12,16 @@ const routes = [
     meta: { title: 'Dashboard' }
   },
   {
+    path: '/salas',
+    name: 'Salas',
+    component: SalasView,
+    meta: { title: 'Salas' }
+  },
+  {
     path: '/alunos',
     name: 'Alunos',
     component: AlunosView,
-    meta: { title: 'Gerenciar Alunos' }
+    meta: { title: 'Alunos' }
   },
   {
     path: '/chamada',

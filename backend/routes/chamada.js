@@ -39,23 +39,32 @@ router.post('/', (req, res) => {
   stmt.finalize();
 });
 
-// GET /api/chamadas?data=YYYY-MM-DD - Obter chamada de uma data
+// GET /api/chamadas?data=YYYY-MM-DD&sala_id=X - Obter chamada de uma data
 router.get('/', (req, res) => {
-  const { data } = req.query;
+  const { data, sala_id } = req.query;
 
   if (!data) {
     return res.status(400).json({ error: 'Parâmetro data é obrigatório (YYYY-MM-DD)' });
   }
 
-  const query = `
-    SELECT a.id, a.nome, a.idade, a.responsavel, a.endereco, a.telefone,
+  let query = `
+    SELECT a.id, a.nome, a.idade, a.responsavel, a.endereco, a.telefone, a.sala_id,
+           s.nome as sala_nome,
            c.status, c.data as chamada_data
     FROM alunos a
+    LEFT JOIN salas s ON a.sala_id = s.id
     LEFT JOIN chamadas c ON a.id = c.aluno_id AND c.data = ?
-    ORDER BY a.nome ASC
   `;
+  let params = [data];
 
-  db.all(query, [data], (err, rows) => {
+  if (sala_id) {
+    query += ` WHERE a.sala_id = ?`;
+    params.push(sala_id);
+  }
+
+  query += ' ORDER BY a.nome ASC';
+
+  db.all(query, params, (err, rows) => {
     if (err) {
       return res.status(500).json({ error: err.message });
     }
@@ -63,34 +72,67 @@ router.get('/', (req, res) => {
   });
 });
 
-// GET /api/dashboard?data=YYYY-MM-DD - Estatísticas do dia
+// GET /api/dashboard?data=YYYY-MM-DD&sala_id=X - Estatísticas do dia
 router.get('/dashboard', (req, res) => {
-  const { data } = req.query;
+  const { data, sala_id } = req.query;
   const dataFilter = data || new Date().toISOString().split('T')[0];
 
-  const query = `
+  let countQuery = 'SELECT COUNT(*) as total FROM alunos';
+  let countParams = [];
+
+  if (sala_id) {
+    countQuery += ' WHERE sala_id = ?';
+    countParams.push(sala_id);
+  }
+
+  let chamadaQuery = `
     SELECT
-      (SELECT COUNT(*) FROM alunos) as total_alunos,
-      (SELECT COUNT(*) FROM chamadas WHERE data = ? AND status = 'presente') as presentes,
-      (SELECT COUNT(*) FROM chamadas WHERE data = ? AND status = 'ausente') as ausentes,
-      (SELECT COUNT(*) FROM chamadas WHERE data = ?) as total_registrados
+      (SELECT COUNT(*) FROM chamadas c
+       JOIN alunos a ON c.aluno_id = a.id
+       WHERE c.data = ? AND c.status = 'presente'
   `;
+  let chamadaParams = [dataFilter];
 
-  db.get(query, [dataFilter, dataFilter, dataFilter], (err, row) => {
-    if (err) {
-      return res.status(500).json({ error: err.message });
-    }
+  if (sala_id) {
+    chamadaQuery += ' AND a.sala_id = ?';
+    chamadaParams.push(sala_id);
+  }
 
-    const taxaPresenca = row.total_registrados > 0
-      ? Math.round((row.presentes / row.total_registrados) * 100)
-      : 0;
+  chamadaQuery += ') as presentes, (SELECT COUNT(*) FROM chamadas c JOIN alunos a ON c.aluno_id = a.id WHERE c.data = ? AND c.status = \'ausente\'';
+  chamadaParams.push(dataFilter);
 
-    res.json({
-      total_alunos: row.total_alunos,
-      presentes: row.presentes,
-      ausentes: row.ausentes,
-      taxa_presenca: taxaPresenca,
-      data: dataFilter
+  if (sala_id) {
+    chamadaQuery += ' AND a.sala_id = ?';
+    chamadaParams.push(sala_id);
+  }
+
+  chamadaQuery += ') as ausentes, (SELECT COUNT(*) FROM chamadas c JOIN alunos a ON c.aluno_id = a.id WHERE c.data = ?';
+  chamadaParams.push(dataFilter);
+
+  if (sala_id) {
+    chamadaQuery += ' AND a.sala_id = ?';
+    chamadaParams.push(sala_id);
+  }
+
+  chamadaQuery += ') as total_registrados';
+
+  db.get(countQuery, countParams, (err, countRow) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    db.get(chamadaQuery, chamadaParams, (err, row) => {
+      if (err) return res.status(500).json({ error: err.message });
+
+      const taxaPresenca = row.total_registrados > 0
+        ? Math.round((row.presentes / row.total_registrados) * 100)
+        : 0;
+
+      res.json({
+        total_alunos: countRow.total,
+        presentes: row.presentes,
+        ausentes: row.ausentes,
+        taxa_presenca: taxaPresenca,
+        data: dataFilter
+      });
     });
   });
 });
@@ -99,20 +141,27 @@ router.get('/dashboard', (req, res) => {
 router.get('/export', (req, res) => {
   const alunos = [];
   const chamadas = [];
+  const salas = [];
 
   db.serialize(() => {
-    db.all('SELECT * FROM alunos ORDER BY id', [], (err, rows) => {
+    db.all('SELECT * FROM salas ORDER BY id', [], (err, rows) => {
       if (err) return res.status(500).json({ error: err.message });
-      alunos.push(...rows);
+      salas.push(...rows);
 
-      db.all('SELECT * FROM chamadas ORDER BY data, aluno_id', [], (err, rows) => {
+      db.all('SELECT * FROM alunos ORDER BY id', [], (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
-        chamadas.push(...rows);
+        alunos.push(...rows);
 
-        res.json({
-          exportado_em: new Date().toISOString(),
-          alunos,
-          chamadas
+        db.all('SELECT * FROM chamadas ORDER BY data, aluno_id', [], (err, rows) => {
+          if (err) return res.status(500).json({ error: err.message });
+          chamadas.push(...rows);
+
+          res.json({
+            exportado_em: new Date().toISOString(),
+            salas,
+            alunos,
+            chamadas
+          });
         });
       });
     });
@@ -121,43 +170,47 @@ router.get('/export', (req, res) => {
 
 // POST /api/import - Importar dados de JSON
 router.post('/import', (req, res) => {
-  const { alunos, chamadas } = req.body;
+  const { alunos, chamadas, salas } = req.body;
 
   if (!alunos || !Array.isArray(alunos)) {
     return res.status(400).json({ error: 'Formato inválido. É necessário um array de alunos.' });
   }
 
-  let importados = 0;
+  let importadosAlunos = 0;
+  let importadosSalas = 0;
   let erros = 0;
 
   db.serialize(() => {
-    // Desabilitar constraints temporariamente para import
     db.run('PRAGMA foreign_keys=OFF');
 
-    // Limpar dados existentes
     db.run('DELETE FROM chamadas');
     db.run('DELETE FROM alunos');
+    db.run('DELETE FROM salas');
+
+    // Importar salas primeiro
+    if (salas && Array.isArray(salas)) {
+      const insertSala = db.prepare(
+        'INSERT INTO salas (id, nome, professor, descricao, created_at) VALUES (?, ?, ?, ?, ?)'
+      );
+      salas.forEach((s) => {
+        insertSala.run(s.id, s.nome, s.professor || null, s.descricao || null, s.created_at || new Date().toISOString(), function(err) {
+          if (!err) importadosSalas++;
+          else erros++;
+        });
+      });
+      insertSala.finalize();
+    }
 
     const insertAluno = db.prepare(
-      'INSERT INTO alunos (id, nome, idade, responsavel, endereco, telefone, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      'INSERT INTO alunos (id, nome, idade, responsavel, endereco, telefone, sala_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
     );
 
     alunos.forEach((aluno) => {
       insertAluno.run(
-        aluno.id,
-        aluno.nome,
-        aluno.idade || null,
-        aluno.responsavel || null,
-        aluno.endereco || null,
-        aluno.telefone || null,
+        aluno.id, aluno.nome, aluno.idade || null, aluno.responsavel || null,
+        aluno.endereco || null, aluno.telefone || null, aluno.sala_id || null,
         aluno.created_at || new Date().toISOString(),
-        function (err) {
-          if (err) {
-            erros++;
-          } else {
-            importados++;
-          }
-        }
+        function (err) { if (err) erros++; else importadosAlunos++; }
       );
     });
 
@@ -167,11 +220,9 @@ router.post('/import', (req, res) => {
       const insertChamada = db.prepare(
         'INSERT OR IGNORE INTO chamadas (aluno_id, data, status, created_at) VALUES (?, ?, ?, ?)'
       );
-
       chamadas.forEach((c) => {
         insertChamada.run(c.aluno_id, c.data, c.status, c.created_at || new Date().toISOString());
       });
-
       insertChamada.finalize();
     }
 
@@ -179,7 +230,8 @@ router.post('/import', (req, res) => {
 
     res.json({
       message: 'Importação concluída',
-      alunos_importados: importados,
+      salas_importadas: importadosSalas,
+      alunos_importados: importadosAlunos,
       erros
     });
   });

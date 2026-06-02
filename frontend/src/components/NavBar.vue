@@ -127,6 +127,7 @@ const drawer = ref(false)
 
 const navItems = [
   { label: 'Dashboard', route: '/', icon: 'mdi-view-dashboard' },
+  { label: 'Salas', route: '/salas', icon: 'mdi-door-open' },
   { label: 'Alunos', route: '/alunos', icon: 'mdi-account-group' },
   { label: 'Chamada', route: '/chamada', icon: 'mdi-clipboard-check' }
 ]
