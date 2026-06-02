@@ -94,8 +94,8 @@
       <v-card-actions class="pa-4">
         <v-spacer></v-spacer>
         <v-btn
-          variant="outlined"
-          color="#8B4513"
+          variant="tonal"
+          color="grey"
           @click="fechar"
           class="mr-2"
         >
@@ -104,8 +104,8 @@
         <v-btn
           :loading="loading"
           :disabled="!valid"
-          color="#8B4513"
-          class="save-btn text-white"
+          color="primary"
+          class="text-white"
           @click="salvar"
         >
           <v-icon start>{{ editando ? 'mdi-content-save' : 'mdi-plus-circle' }}</v-icon>
@@ -222,7 +222,7 @@ async function salvar() {
 
 <style scoped>
 .form-header {
-  background: linear-gradient(135deg, #8B4513 0%, #5C2E0A 100%);
+  background: linear-gradient(135deg, #D90445 0%, #B80338 100%);
 }
 
 .aluno-form-card {
@@ -230,11 +230,11 @@ async function salvar() {
 }
 
 .save-btn {
-  background: linear-gradient(135deg, #8B4513 0%, #5C2E0A 100%) !important;
+  background: linear-gradient(135deg, #D90445 0%, #B80338 100%) !important;
   border: none;
 }
 
 .save-btn:hover {
-  background: linear-gradient(135deg, #A0522D 0%, #8B4513 100%) !important;
+  background: linear-gradient(135deg, #E83E6B 0%, #D90445 100%) !important;
 }
 </style>

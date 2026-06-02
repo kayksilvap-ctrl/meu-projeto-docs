@@ -50,7 +50,7 @@
         <v-btn
           :loading="loading"
           :disabled="!valid"
-          color="#8B4513"
+          color="primary"
           class="save-btn text-white"
           @click="salvar"
           size="small"
@@ -108,7 +108,7 @@ async function salvar() {
 </script>
 
 <style scoped>
-.form-header { background: linear-gradient(135deg, #8B4513, #5C2E0A); border-radius: 4px 4px 0 0; }
+.form-header { background: linear-gradient(135deg, #D90445, #B80338); border-radius: 4px 4px 0 0; }
 .sala-form-card { border-radius: 12px; overflow: hidden; }
-.save-btn { background: linear-gradient(135deg, #8B4513, #5C2E0A) !important; border: none; }
+.save-btn { background: linear-gradient(135deg, #D90445, #B80338) !important; border: none; }
 </style>

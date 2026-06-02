@@ -1,50 +1,70 @@
 <template>
-  <v-container fluid class="pa-4 pa-md-6" style="background:#f5f0eb;min-height:100vh">
+  <v-container fluid class="pa-4 pa-md-6">
     <div class="d-flex align-center justify-space-between mb-4 flex-wrap ga-2">
       <div>
-        <h1 class="text-h4 font-weight-bold" style="color:#8B4513">
-          <v-icon color="#FFD700" size="32" class="mr-2">mdi-clipboard-check</v-icon>Chamada
-        </h1>
-        <p v-if="salaSelecionada" class="text-caption text-grey mt-1">
-          <v-icon size="12" class="mr-1">mdi-door-open</v-icon>
-          {{ salaNome }}
+        <h1 class="page-title">Chamada</h1>
+        <p v-if="salaSelecionada" class="text-body-2 text-secondary mt-1">
+          Sala: <strong>{{ salaNome }}</strong>
         </p>
       </div>
-
-      <div class="d-flex ga-2 flex-wrap">
-        <v-select v-model="salaSelecionada" :items="salas" item-title="nome" item-value="id" label="Selecionar sala" prepend-inner-icon="mdi-door-open" clearable density="compact" style="min-width:180px" variant="outlined" hide-details @update:model-value="carregarChamada"></v-select>
+      <div class="d-flex ga-2">
+        <v-select
+          v-model="salaSelecionada" :items="salas" item-title="nome" item-value="id"
+          label="Selecionar sala" prepend-inner-icon="mdi-door-open" clearable
+          density="compact" variant="outlined" hide-details style="min-width:160px"
+          @update:model-value="carregarChamada"
+        />
         <v-menu :close-on-content-click="false" transition="scale-transition">
           <template v-slot:activator="{ props }">
-            <v-btn v-bind="props" variant="outlined" color="#8B4513" prepend-icon="mdi-calendar" size="small" class="bg-white">
+            <v-btn v-bind="props" variant="outlined" color="primary" size="small" class="bg-white">
+              <v-icon start size="16">mdi-calendar</v-icon>
               {{ dataFormatada }}
             </v-btn>
           </template>
-          <v-date-picker v-model="dataSelecionada" @update:model-value="onDataChange" color="#8B4513" header-color="#8B4513" :max="hoje"></v-date-picker>
+          <v-date-picker v-model="dataSelecionada" @update:model-value="onDataChange" color="primary" :max="hoje" />
         </v-menu>
       </div>
     </div>
 
-    <!-- Barra de status -->
-    <v-card class="pa-3 mb-4 d-flex align-center flex-wrap ga-2" elevation="1" style="border-radius:12px">
-      <v-chip size="x-small" color="#8B4513" variant="tonal" label><v-icon start size="14">mdi-account-group</v-icon>{{ alunos.length }} alunos</v-chip>
-      <v-chip size="x-small" color="success" variant="tonal" label><v-icon start size="14">mdi-check-circle</v-icon>{{ totalPresentes }} presentes</v-chip>
-      <v-chip size="x-small" color="error" variant="tonal" label><v-icon start size="14">mdi-close-circle</v-icon>{{ totalAusentes }} ausentes</v-chip>
-      <v-chip size="x-small" variant="tonal" label><v-icon start size="14">mdi-minus-circle</v-icon>{{ totalNaoRegistrados }} pendentes</v-chip>
-      <v-spacer></v-spacer>
-      <v-btn v-if="alunos.length && totalNaoRegistrados" color="success" variant="tonal" size="x-small" prepend-icon="mdi-check-all" @click="marcarTodosPresentes" :loading="marcandoTodos">Presentes</v-btn>
+    <v-card class="pa-3 mb-4 d-flex align-center flex-wrap ga-2" elevation="1">
+      <v-chip size="x-small" color="primary" variant="tonal" label>
+        <v-icon start size="14">mdi-account-group</v-icon>{{ alunos.length }} alunos
+      </v-chip>
+      <v-chip size="x-small" color="success" variant="tonal" label>
+        <v-icon start size="14">mdi-check-circle</v-icon>{{ totalPresentes }} presentes
+      </v-chip>
+      <v-chip size="x-small" color="error" variant="tonal" label>
+        <v-icon start size="14">mdi-close-circle</v-icon>{{ totalAusentes }} ausentes
+      </v-chip>
+      <v-chip size="x-small" variant="tonal" label>
+        <v-icon start size="14">mdi-minus-circle</v-icon>{{ totalNaoRegistrados }} pendentes
+      </v-chip>
+      <v-spacer />
+      <v-btn
+        v-if="alunos.length && totalNaoRegistrados"
+        color="success" variant="tonal" size="x-small" prepend-icon="mdi-check-all"
+        @click="marcarTodosPresentes" :loading="marcandoTodos"
+      >
+        Todos Presentes
+      </v-btn>
     </v-card>
 
-    <!-- Lista -->
-    <div v-if="carregando" class="d-flex justify-center pa-8"><v-progress-circular indeterminate color="#8B4513" size="36" width="3"></v-progress-circular></div>
-    <div v-else-if="!alunos.length" class="text-center pa-8 text-grey">
-      <v-icon size="56" class="mb-3">mdi-account-off</v-icon>
-      <h3>{{ salas.length ? 'Nenhum aluno nesta sala' : 'Nenhuma sala cadastrada' }}</h3>
-      <p class="text-caption mb-4">Cadastre salas e alunos primeiro.</p>
+    <div v-if="carregando" class="d-flex justify-center pa-8">
+      <v-progress-circular indeterminate color="primary" size="32" width="2" />
+    </div>
+    <div v-else-if="!alunos.length" class="text-center pa-8 text-secondary">
+      <v-icon size="52" class="mb-3">mdi-account-off</v-icon>
+      <p class="text-body-1 font-weight-medium">
+        {{ salas.length ? 'Nenhum aluno nesta sala' : 'Nenhuma sala cadastrada' }}
+      </p>
+      <p class="text-body-2">Cadastre salas e alunos primeiro.</p>
     </div>
     <div v-else>
-      <v-row><v-col cols="12" v-for="aluno in alunos" :key="aluno.id">
-        <AlunoCard :aluno="aluno" @registrar="registrarPresenca" />
-      </v-col></v-row>
+      <v-row>
+        <v-col cols="12" v-for="aluno in alunos" :key="aluno.id">
+          <AlunoCard :aluno="aluno" @registrar="registrarPresenca" />
+        </v-col>
+      </v-row>
     </div>
   </v-container>
 </template>
@@ -67,18 +87,13 @@ const dataFormatada = computed(() => {
   const p = dataSelecionada.value.split('-')
   return new Date(p[0], p[1]-1, p[2]).toLocaleDateString('pt-BR')
 })
-
-const salaNome = computed(() => {
-  const s = salas.value.find(s => s.id === salaSelecionada.value)
-  return s ? s.nome : ''
-})
-
+const salaNome = computed(() => salas.value.find(s => s.id === salaSelecionada.value)?.nome || '')
 const totalPresentes = computed(() => alunos.value.filter(a => a.status === 'presente').length)
 const totalAusentes = computed(() => alunos.value.filter(a => a.status === 'ausente').length)
 const totalNaoRegistrados = computed(() => alunos.value.filter(a => !a.status).length)
 
 async function carregarSalas() {
-  try { const r = await api.getSalas(); salas.value = r.data || [] } catch (e) { console.error(e) }
+  try { const r = await api.getSalas(); salas.value = r.data || [] } catch {}
 }
 
 async function carregarChamada() {
@@ -86,7 +101,7 @@ async function carregarChamada() {
   try {
     const r = await api.getChamada(dataSelecionada.value, salaSelecionada.value || '')
     alunos.value = r.data || []
-  } catch (e) { console.error(e); alunos.value = [] }
+  } catch { alunos.value = [] }
   finally { carregando.value = false }
 }
 
@@ -94,8 +109,8 @@ async function registrarPresenca({ aluno_id, status }) {
   try {
     await api.registrarChamada(aluno_id, dataSelecionada.value, status)
     const idx = alunos.value.findIndex(a => a.id === aluno_id)
-    if (idx !== -1) alunos.value[idx] = { ...alunos.value[idx], status, chamada_data: dataSelecionada.value }
-  } catch (e) { console.error(e); alert('Erro ao registrar.') }
+    if (idx !== -1) alunos.value[idx] = { ...alunos.value[idx], status }
+  } catch { alert('Erro ao registrar.') }
 }
 
 async function marcarTodosPresentes() {
@@ -103,7 +118,7 @@ async function marcarTodosPresentes() {
   try {
     await Promise.all(alunos.value.filter(a => !a.status).map(a => api.registrarChamada(a.id, dataSelecionada.value, 'presente')))
     await carregarChamada()
-  } catch (e) { console.error(e); alert('Erro ao marcar todos.') }
+  } catch { alert('Erro.') }
   finally { marcandoTodos.value = false }
 }
 
@@ -111,3 +126,7 @@ function onDataChange() { carregarChamada() }
 
 onMounted(() => { carregarSalas(); carregarChamada() })
 </script>
+
+<style scoped>
+.page-title { font-size: 1.5rem; font-weight: 700; color: var(--text); }
+</style>
