@@ -1,26 +1,20 @@
 import axios from 'axios'
-const api = axios.create({ baseURL: '/api', timeout: 10000 })
+const http = axios.create({ baseURL: '/api', timeout: 10000 })
 
+export { http }
 export default {
-  // Turmas
-  getTurmas: () => api.get('/turmas'),
-  createTurma: (d) => api.post('/turmas', d),
-  updateTurma: (id, d) => api.put(`/turmas/${id}`, d),
-  deleteTurma: (id) => api.delete(`/turmas/${id}`),
-
-  // Crianças
-  getCriancas: (params) => api.get('/criancas', { params }),
-  getCrianca: (id) => api.get(`/criancas/${id}`),
-  createCrianca: (d) => api.post('/criancas', d),
-  updateCrianca: (id, d) => api.put(`/criancas/${id}`, d),
-  deleteCrianca: (id) => api.delete(`/criancas/${id}`),
-
-  // Frequências
-  getFrequencias: (params) => api.get('/frequencias', { params }),
-  registrarFrequencia: (d) => api.post('/frequencias', d),
-  getDashboard: (params) => api.get('/frequencias/dashboard', { params }),
-  getRelatorios: () => api.get('/frequencias/relatorios'),
-
-  // Health
-  health: () => api.get('/health'),
+  getTurmas: () => http.get('/turmas'),
+  createTurma: (d) => http.post('/turmas', d),
+  updateTurma: (id, d) => http.put(`/turmas/${id}`, d),
+  deleteTurma: (id) => http.delete(`/turmas/${id}`),
+  getCriancas: (params) => http.get('/criancas', { params }),
+  getCrianca: (id) => http.get(`/criancas/${id}`),
+  createCrianca: (d) => http.post('/criancas', d),
+  updateCrianca: (id, d) => http.put(`/criancas/${id}`, d),
+  deleteCrianca: (id) => http.delete(`/criancas/${id}`),
+  getFrequencias: (params) => http.get('/frequencias', { params }),
+  registrarFrequencia: (d) => http.post('/frequencias', d),
+  getDashboard: (params) => http.get('/frequencias/dashboard', { params }),
+  getRelatorios: () => http.get('/frequencias/relatorios'),
+  health: () => http.get('/health'),
 }

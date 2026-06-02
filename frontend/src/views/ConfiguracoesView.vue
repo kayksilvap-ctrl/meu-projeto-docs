@@ -29,7 +29,7 @@
 
 <script setup>
 import { ref } from 'vue'
-import axios from 'axios'
+import { http } from '../api'
 
 const resetando = ref(false)
 
@@ -37,7 +37,7 @@ async function resetar() {
   if (!confirm('⚠️ ATENÇÃO: Todos os dados serão apagados permanentemente.\n\nTem certeza?')) return
   resetando.value = true
   try {
-    await axios.delete('http://localhost:3000/api/turmas/reset').catch(() => {})
+    await http.delete('/turmas/reset').catch(() => {})
     alert('Dados resetados com sucesso!')
   } catch { alert('Erro ao resetar.') }
   finally { resetando.value = false }
