@@ -1,5 +1,5 @@
 <template>
-  <v-app>
+  <div style="display:flex;height:100vh;overflow:hidden">
     <div class="app-layout">
       <!-- Sidebar -->
       <AppSidebar />
@@ -22,7 +22,7 @@
 
     <!-- Global Modals -->
     <router-view name="modal" />
-  </v-app>
+  </div>
 </template>
 
 <script setup>

@@ -23,7 +23,7 @@ const turmaFiltro = ref('')
 const dataFiltro = ref(new Date().toISOString().split('T')[0])
 const turmas = ref([])
 
-api.get('/turmas').then(r => turmas.value = r.data).catch(() => {})
+api.getTurmas().then(r => turmas.value = r.data).catch(() => {})
 </script>
 
 <style scoped>
