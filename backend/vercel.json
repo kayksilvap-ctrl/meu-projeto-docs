@@ -2,8 +2,9 @@
   "buildCommand": "npm install",
   "outputDirectory": ".",
   "framework": "nodejs",
+  "entrypoint": "api/index.js",
   "functions": {
-    "api/**/*.js": {
+    "api/index.js": {
       "maxDuration": 10,
       "memory": 256
     }
