@@ -1,6 +1,7 @@
 <template>
   <header class="topbar">
     <div class="topbar-left">
+      <button class="hamburger-btn" @click="$emit('toggle-menu')">☰</button>
       <input type="text" class="search-input" placeholder="🔍 Buscar..." v-model="busca" />
       <select v-model="turmaFiltro" class="filter-select">
         <option value="">Todas as turmas</option>
@@ -18,6 +19,7 @@
 <script setup>
 import { ref } from 'vue'
 import api from '../api'
+defineEmits(['toggle-menu'])
 const busca = ref('')
 const turmaFiltro = ref('')
 const dataFiltro = ref(new Date().toISOString().split('T')[0])
@@ -88,6 +90,17 @@ api.getTurmas().then(r => turmas.value = r.data).catch(() => {})
   border-radius: 10px;
   font-weight: 700;
 }
+.hamburger-btn {
+  display: none;
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--text);
+  padding: 4px;
+  line-height: 1;
+}
+
 .user-avatar-sm {
   width: 32px;
   height: 32px;
@@ -104,5 +117,6 @@ api.getTurmas().then(r => turmas.value = r.data).catch(() => {})
 @media (max-width: 960px) {
   .topbar { padding: 12px 16px; }
   .search-input { width: 150px; }
+  .hamburger-btn { display: block; }
 }
 </style>

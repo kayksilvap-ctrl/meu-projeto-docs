@@ -2,12 +2,12 @@
   <div style="display:flex;height:100vh;overflow:hidden">
     <div class="app-layout">
       <!-- Sidebar -->
-      <AppSidebar />
+      <AppSidebar ref="sidebarRef" />
 
       <!-- Main Area -->
       <div class="main-area">
         <!-- Topbar -->
-        <AppTopbar />
+        <AppTopbar @toggle-menu="toggleMenu" />
 
         <!-- Content -->
         <main class="content-area">
@@ -26,8 +26,17 @@
 </template>
 
 <script setup>
+import { ref } from 'vue'
 import AppSidebar from './components/AppSidebar.vue'
 import AppTopbar from './components/AppTopbar.vue'
+
+const sidebarRef = ref(null)
+
+function toggleMenu() {
+  if (sidebarRef.value) {
+    sidebarRef.value.toggleMenu()
+  }
+}
 </script>
 
 <style>
@@ -86,6 +95,9 @@ body {
 @media (max-width: 960px) {
   .main-area { margin-left: 0; }
   .content-area { padding: 16px; }
+}
+@media (max-width: 600px) {
+  .content-area { padding: 12px; }
 }
 
 .page-enter-active { transition: opacity 0.2s ease, transform 0.2s ease; }

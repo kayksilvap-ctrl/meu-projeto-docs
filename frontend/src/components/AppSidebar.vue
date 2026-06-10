@@ -1,16 +1,20 @@
 <template>
-  <aside class="sidebar">
+  <!-- Mobile overlay -->
+  <div v-if="isMobile && menuAberto" class="mobile-overlay" @click="fecharMenu"></div>
+
+  <aside class="sidebar" :class="{ 'sidebar-open': !isMobile || menuAberto }">
     <div class="sidebar-header">
       <LogoAnjo :size="36" :showText="false" />
       <div class="ml-3">
         <div class="sidebar-title">Anjo da Guarda</div>
         <div class="sidebar-subtitle">Gestão de Frequência</div>
       </div>
+      <button v-if="isMobile" class="btn-close-sidebar" @click="fecharMenu">✕</button>
     </div>
 
     <nav class="sidebar-nav">
       <router-link v-for="item in menuItems" :key="item.path" :to="item.path"
-        class="nav-item" :class="{ active: $route.path === item.path }">
+        class="nav-item" :class="{ active: $route.path === item.path }" @click="fecharMenuMobile">
         <span class="nav-icon">{{ item.icon }}</span>
         <span class="nav-label">{{ item.label }}</span>
       </router-link>
@@ -29,9 +33,25 @@
 </template>
 
 <script setup>
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import LogoAnjo from './LogoAnjo.vue'
+
 const route = useRoute()
+const menuAberto = ref(false)
+const isMobile = ref(window.innerWidth <= 960)
+
+function checkMobile() {
+  isMobile.value = window.innerWidth <= 960
+}
+function fecharMenu() { menuAberto.value = false }
+function fecharMenuMobile() { if (isMobile.value) menuAberto.value = false }
+function toggleMenu() { menuAberto.value = !menuAberto.value }
+
+onMounted(() => window.addEventListener('resize', checkMobile))
+onUnmounted(() => window.removeEventListener('resize', checkMobile))
+
+defineExpose({ toggleMenu, menuAberto })
 
 const menuItems = [
   { path: '/', label: 'Dashboard', icon: '📊' },
@@ -45,6 +65,10 @@ const menuItems = [
 </script>
 
 <style scoped>
+.mobile-overlay {
+  display: none;
+}
+
 .sidebar {
   position: fixed;
   left: 0;
@@ -63,6 +87,17 @@ const menuItems = [
   align-items: center;
   padding: 20px 20px;
   border-bottom: 1px solid #E5E7EB;
+}
+
+.btn-close-sidebar {
+  display: none;
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  margin-left: auto;
+  padding: 4px 8px;
 }
 
 .sidebar-title {
@@ -158,6 +193,24 @@ const menuItems = [
 }
 
 @media (max-width: 960px) {
-  .sidebar { display: none; }
+  .sidebar {
+    display: flex;
+    left: -280px;
+    transition: left 0.3s ease;
+    box-shadow: 2px 0 12px rgba(0,0,0,0.15);
+  }
+  .sidebar-open {
+    left: 0;
+  }
+  .mobile-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 99;
+  }
+  .btn-close-sidebar {
+    display: block;
+  }
 }
 </style>
