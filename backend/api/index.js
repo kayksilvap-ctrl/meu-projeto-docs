@@ -174,4 +174,6 @@ app.get('/api/estatisticas', (req, res) => {
 });
 
 // Export the serverless handler
+// With experimentalServices, Vercel strips the routePrefix (/api) automatically
+// so Express receives /turmas, /criancas, etc. directly
 exports.handler = serverless(app);
