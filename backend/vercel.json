@@ -1,0 +1,11 @@
+{
+  "buildCommand": "npm install",
+  "outputDirectory": ".",
+  "framework": "nodejs",
+  "functions": {
+    "api/**/*.js": {
+      "maxDuration": 10,
+      "memory": 256
+    }
+  }
+}

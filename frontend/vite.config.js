@@ -11,5 +11,9 @@ export default defineConfig({
         changeOrigin: true
       }
     }
+  },
+  // On Vercel, the API base is /_/backend/api (set via VITE_API_BASE env var)
+  define: {
+    __VERCEL_ENV__: process.env.VERCEL === '1'
   }
 })
