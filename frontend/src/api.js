@@ -2,6 +2,11 @@ import axios from 'axios'
 
 const http = axios.create({ baseURL: '/api', timeout: 10000 })
 
+// Se a API exigir token (API_TOKEN no backend), defina VITE_API_TOKEN no build do frontend
+if (import.meta.env.VITE_API_TOKEN) {
+  http.defaults.headers.common['x-api-token'] = import.meta.env.VITE_API_TOKEN
+}
+
 export { http }
 export default {
   getTurmas: () => http.get('/turmas'),

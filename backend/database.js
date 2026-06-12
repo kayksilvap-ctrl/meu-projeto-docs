@@ -1,19 +1,13 @@
 const path = require('path');
 const fs = require('fs');
 
-// Try better-sqlite3 (synchronous, works in Lambda), fallback to sql.js (pure JS)
-let BetterDatabase, initSqlJs;
+// Ordem de escolha: Turso (produção/Vercel) > better-sqlite3 (síncrono) > sqlite3 (fallback local)
+let BetterDatabase;
 
 try {
   BetterDatabase = require('better-sqlite3');
 } catch (e) {
   // better-sqlite3 not available
-}
-
-try {
-  initSqlJs = require('sql.js');
-} catch (e) {
-  // sql.js not available  
 }
 
 const isVercel = process.env.VERCEL === '1' || process.env.AWS_LAMBDA_FUNCTION_NAME;
@@ -147,81 +141,12 @@ function createDatabase() {
     };
   }
 
-  // ===== SQL.JS (pure JS - Vercel fallback if better-sqlite3 unavailable) =====
-  if (initSqlJs && isVercel) {
-    // sql.js is async, but we'll handle it at the API level
-    const SQL = initSqlJs();
-    _db = new SQL.Database();
-
-    SCHEMA_SQL.forEach(sql => { try { _db.run(sql); } catch(e) {} });
-    console.log('✅ Conectado ao sql.js (Vercel - pure JS)');
-
-    return {
-      _db: _db,
-      run: (sql, params, callback) => {
-        if (typeof params === 'function') { callback = params; params = []; }
-        try {
-          _db.run(sql, params || []);
-          const r = _db.exec("SELECT last_insert_rowid()");
-          const lastID = r?.[0]?.values?.[0]?.[0] || 0;
-          callback(null, { changes: _db.getRowsModified(), lastID: Number(lastID) });
-        } catch (err) { callback(err); }
-      },
-      get: (sql, params, callback) => {
-        if (typeof params === 'function') { callback = params; params = []; }
-        try {
-          const stmt = _db.prepare(sql);
-          if (params) stmt.bind(params);
-          const row = stmt.step() ? stmt.getAsObject() : null;
-          stmt.free();
-          callback(null, row);
-        } catch (err) { callback(err); }
-      },
-      all: (sql, params, callback) => {
-        if (typeof params === 'function') { callback = params; params = []; }
-        try {
-          let rows;
-          if (params) {
-            const stmt = _db.prepare(sql);
-            stmt.bind(params);
-            rows = [];
-            while (stmt.step()) rows.push(stmt.getAsObject());
-            stmt.free();
-          } else {
-            const r = _db.exec(sql);
-            if (r.length > 0) {
-              const cols = r[0].columns;
-              rows = r[0].values.map(row => {
-                const o = {};
-                cols.forEach((c, i) => o[c] = row[i]);
-                return o;
-              });
-            } else { rows = []; }
-          }
-          callback(null, rows);
-        } catch (err) { callback(err); }
-      },
-      prepare: (sql) => {
-        let stmt; try { stmt = _db.prepare(sql); } catch(e) {}
-        return {
-          run: (...args) => {
-            const cb = args.find(a => typeof a === 'function');
-            const p = args.filter(a => typeof a !== 'function');
-            try {
-              if (stmt) {
-                if (p.length) stmt.bind(p);
-                stmt.step(); stmt.reset();
-              }
-              const r = _db.exec("SELECT last_insert_rowid()");
-              cb && cb(null, { changes: _db.getRowsModified(), lastID: Number(r?.[0]?.values?.[0]?.[0] || 0) });
-            } catch (err) { cb && cb(err); }
-          },
-          finalize: () => { if (stmt) stmt.free(); }
-        };
-      },
-      serialize: (fn) => fn(),
-      ready: () => Promise.resolve(),
-    };
+  // ===== Sem banco utilizável no Vercel =====
+  if (isVercel) {
+    throw new Error(
+      'Nenhum banco disponível no Vercel: configure TURSO_DATABASE_URL e TURSO_AUTH_TOKEN ' +
+      '(persistente, recomendado) ou garanta que o better-sqlite3 foi instalado (dados somente em memória).'
+    );
   }
 
   // ===== SQLITE3 (last resort fallback - local only) =====

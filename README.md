@@ -29,7 +29,7 @@ Sistema completo para gerenciamento de chamada e frequência de alunos, constru�
 | Backend | Node.js + Express |
 | Banco | SQLite (local) / Turso (produção no Vercel) |
 | Build | Vite 5 |
-| Deploy | Vercel (experimentalServices) |
+| Deploy | Vercel (SPA + função serverless em `/api`) |
 
 ## 📦 Instalação
 
@@ -85,20 +85,7 @@ npm run dev
 
 ## ☁️ Deploy no Vercel
 
-O projeto está configurado para deploy no Vercel usando o recurso `experimentalServices` (Multi-Framework Preview).
-
-### Estrutura de serviços
-
-```
-meu-projeto-docs/
-├── vercel.json                   # Configuração raiz com experimentalServices
-├── backend/
-│   ├── vercel.json               # Configuração do backend service
-│   ├── api/index.js              # Entrypoint serverless (Express adaptado)
-│   └── database.js               # Adaptado para Turso em produção
-└── frontend/
-    └── vite.config.js            # Build config para Vercel
-```
+Estrutura padrão do Vercel: o frontend é buildado como SPA (`frontend/dist`) e a API roda como **função serverless** em `api/index.js`, que apenas exporta o app Express de `backend/app.js`.
 
 ### Configuração no Vercel
 
@@ -107,25 +94,23 @@ meu-projeto-docs/
 
 | Variável | Descrição |
 |----------|-----------|
-| `VITE_API_BASE` | `/_/backend/api` (rota do backend service) |
-| `TURSO_DATABASE_URL` | URL do banco Turso (opcional - veja abaixo) |
-| `TURSO_AUTH_TOKEN` | Token de autenticação Turso (opcional) |
+| `TURSO_DATABASE_URL` | URL do banco Turso (**obrigatória em produção** — sem ela os dados são perdidos a cada cold start) |
+| `TURSO_AUTH_TOKEN` | Token de autenticação do Turso |
+| `API_TOKEN` | (recomendado) Token secreto da API — quando definido, toda rota exige o header `x-api-token` |
+| `VITE_API_TOKEN` | O mesmo valor de `API_TOKEN`, para o frontend enviar o header automaticamente |
+| `CORS_ORIGIN` | (recomendado) Domínio permitido, ex.: `https://seu-projeto.vercel.app` |
 
-3. **Configuração do banco de dados:**
+3. **Banco de dados (Turso):** [crie uma conta gratuita](https://turso.tech), crie um banco e copie URL + token para as variáveis acima. Sem Turso o banco roda **em memória** e zera a cada cold start — serve só para demonstração.
 
-   - **Sem Turso (apenas demonstração):** O Vercel usará SQLite em memória. Os dados serão perdidos a cada redeploy ou cold start. Adequado apenas para testes.
-
-   - **Com Turso (recomendado para produção):** [Crie uma conta gratuita no Turso](https://turso.tech), crie um banco e adicione as credenciais nas variáveis de ambiente do Vercel.
-
-4. **Faça o deploy:** O Vercel detectará automaticamente a configuração `experimentalServices` e implantará o frontend como SPA e o backend como serverless functions.
+4. **Faça o deploy.** O `vercel.json` da raiz já define build do frontend, rewrites e a função da API.
 
 ### URLs após o deploy
 
 | Serviço | URL |
 |---------|-----|
 | **Frontend** | `https://seu-projeto.vercel.app/` |
-| **Backend API** | `https://seu-projeto.vercel.app/_/backend/api` |
-| **Health Check** | `https://seu-projeto.vercel.app/_/backend/api/health` |
+| **Backend API** | `https://seu-projeto.vercel.app/api` |
+| **Health Check** | `https://seu-projeto.vercel.app/api/health` |
 
 ## 📁 Estrutura do Projeto
 
@@ -133,13 +118,13 @@ meu-projeto-docs/
 meu-projeto-docs/
 ├── package.json                      # Scripts raiz
 ├── vercel.json                       # Configuração Vercel
+├── api/
+│   └── index.js                      # Entrypoint serverless do Vercel (exporta o app Express)
 ├── backend/
 │   ├── package.json
-│   ├── vercel.json                   # Configuração Vercel do backend
-│   ├── server.js                     # Servidor Express (porta 3000) - uso local
+│   ├── app.js                        # App Express único (rotas + auth + CORS) — usado local e no Vercel
+│   ├── server.js                     # Servidor local (porta 3000)
 │   ├── database.js                   # Configuração SQLite/Turso
-│   ├── api/
-│   │   └── index.js                  # Entrypoint serverless para Vercel
 │   └── routes/
 │       ├── turmas.js                 # CRUD de turmas
 │       ├── criancas.js               # CRUD de crianças
@@ -194,7 +179,7 @@ meu-projeto-docs/
 | DELETE | `/api/reset` | Resetar todos os dados |
 | GET | `/api/estatisticas` | Estatísticas dos últimos 30 dias |
 
-> **Nota:** Em produção no Vercel, prefixe todas as rotas com `/_/backend/api`. Ex: `/_/backend/api/health`
+> **Nota:** Em produção as rotas são as mesmas (`/api/...`). Se `API_TOKEN` estiver configurada, toda chamada precisa do header `x-api-token`.
 
 ## 🎨 Tema
 
