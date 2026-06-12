@@ -28,7 +28,8 @@ module.exports = createDatabase();
 
 function createDatabase() {
   // ===== TURSO (Vercel production - persistent) =====
-  if (useTurso) {
+  // Defensivo: URL/token inválidos no painel NÃO podem derrubar a função no carregamento
+  if (useTurso) try {
     const { createClient } = require('@libsql/client');
     const turso = createClient({
       url: process.env.TURSO_DATABASE_URL,
@@ -80,6 +81,8 @@ function createDatabase() {
       serialize: (fn) => fn(),
       ready: () => Promise.resolve(),
     };
+  } catch (e) {
+    console.error('⚠ Turso inválido (' + e.message + ') — confira TURSO_DATABASE_URL/TURSO_AUTH_TOKEN no painel do Vercel; usando o próximo modo de banco.');
   }
 
   // ===== BETTER-SQLITE3 (local + Vercel fallback) =====
