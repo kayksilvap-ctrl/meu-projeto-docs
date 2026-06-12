@@ -45,8 +45,12 @@ function createDatabase() {
       run: (sql, params, callback) => {
         if (typeof params === 'function') { callback = params; params = []; }
         turso.execute({ sql, args: params || [] })
-          .then(r => callback(null, { changes: r.rowsAffected, lastID: r.lastInsertRowid }))
-          .catch(err => callback(err));
+          .then(r => {
+            const info = { changes: r.rowsAffected, lastID: Number(r.lastInsertRowid) };
+            // callback com this = info, p/ suportar o padrão sqlite3 "function(err){ this.lastID }"
+            callback && callback.call(info, null, info);
+          })
+          .catch(err => callback && callback(err));
       },
       get: (sql, params, callback) => {
         if (typeof params === 'function') { callback = params; params = []; }
@@ -65,7 +69,10 @@ function createDatabase() {
           const cb = args.find(a => typeof a === 'function');
           const p = args.filter(a => typeof a !== 'function');
           turso.execute({ sql, args: p || [] })
-            .then(r => cb && cb(null, { changes: r.rowsAffected, lastID: r.lastInsertRowid }))
+            .then(r => {
+              const info = { changes: r.rowsAffected, lastID: Number(r.lastInsertRowid) };
+              cb && cb.call(info, null, info);
+            })
             .catch(err => cb && cb(err));
         },
         finalize: () => {}
@@ -105,8 +112,9 @@ function createDatabase() {
         try {
           const stmt = _db.prepare(sql);
           const result = params && params.length ? stmt.run(...params) : stmt.run();
-          callback(null, { changes: result.changes, lastID: Number(result.lastInsertRowid) });
-        } catch (err) { callback(err); }
+          const info = { changes: result.changes, lastID: Number(result.lastInsertRowid) };
+          callback && callback.call(info, null, info);
+        } catch (err) { callback && callback(err); }
       },
       get: (sql, params, callback) => {
         if (typeof params === 'function') { callback = params; params = []; }
@@ -130,7 +138,8 @@ function createDatabase() {
             const p = args.filter(a => typeof a !== 'function');
             try {
               const r = p.length ? stmt.run(...p) : stmt.run();
-              cb && cb(null, { changes: r.changes, lastID: Number(r.lastInsertRowid) });
+              const info = { changes: r.changes, lastID: Number(r.lastInsertRowid) };
+              cb && cb.call(info, null, info);
             } catch (err) { cb && cb(err); }
           },
           finalize: () => {}
@@ -162,12 +171,11 @@ function createDatabase() {
   console.log('✅ Conectado ao SQLite (fallback)');
 
   return {
-    run: (...args) => {
-      const cb = args.find(a => typeof a === 'function');
-      const params = args.filter(a => typeof a !== 'function');
-      const sql = typeof args[0] === 'string' ? args[0] : args[1];
-      _db.run(sql, params.length ? params : [], function(err) {
-        cb && cb(err, { changes: this?.changes, lastID: this?.lastID });
+    run: (sql, params, callback) => {
+      if (typeof params === 'function') { callback = params; params = []; }
+      _db.run(sql, params || [], function (err) {
+        // this aqui é o Statement do sqlite3 (tem lastID/changes) — repassa como contexto
+        callback && callback.call(this, err, { changes: this && this.changes, lastID: this && this.lastID });
       });
     },
     get: (sql, params, callback) => {
@@ -184,7 +192,9 @@ function createDatabase() {
         run: (...args) => {
           const cb = args.find(a => typeof a === 'function');
           const p = args.filter(a => typeof a !== 'function');
-          stmt.run(p || [], function(err) { cb && cb(err, { changes: this?.changes, lastID: this?.lastID }); });
+          stmt.run(p || [], function (err) {
+            cb && cb.call(this, err, { changes: this && this.changes, lastID: this && this.lastID });
+          });
         },
         finalize: () => stmt.finalize()
       };
