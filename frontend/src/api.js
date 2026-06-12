@@ -22,6 +22,7 @@ export default {
   registrarFrequencia: (d) => http.post('/frequencias', d),
   getDashboard: (params) => http.get('/frequencias/dashboard', { params }),
   getRelatorios: () => http.get('/frequencias/relatorios'),
+  getResumoFrequencia: (params) => http.get('/frequencias/resumo', { params }),
   health: () => http.get('/health'),
   exportarDados: () => http.get('/export'),
   importarDados: (d) => http.post('/import', d),

@@ -109,4 +109,56 @@ router.get('/relatorios', (req, res) => {
   });
 });
 
+// GET /resumo - Acumulado por crianca (presencas, faltas justificadas/nao justificadas + contatos)
+router.get('/resumo', (req, res) => {
+  const { turma_id, de, ate } = req.query;
+
+  let query = `
+    SELECT c.id, c.nome as crianca_nome, c.turma_id, t.nome as turma_nome,
+      COUNT(CASE WHEN f.status = 'presente' THEN 1 END) as presencas,
+      COUNT(CASE WHEN f.status = 'ausente_justificada' THEN 1 END) as faltas_justificadas,
+      COUNT(CASE WHEN f.status = 'ausente_nao_justificada' THEN 1 END) as faltas_nao_justificadas,
+      COUNT(f.id) as total_chamadas
+    FROM criancas c
+    LEFT JOIN turmas t ON c.turma_id = t.id
+    LEFT JOIN frequencias f ON f.crianca_id = c.id`;
+  const params = [];
+  if (de)  { query += ' AND f.data >= ?'; params.push(de); }
+  if (ate) { query += ' AND f.data <= ?'; params.push(ate); }
+  if (turma_id) { query += ' WHERE c.turma_id = ?'; params.push(turma_id); }
+  query += ' GROUP BY c.id ORDER BY t.nome, c.nome';
+
+  db.all(query, params, (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    const criancas = rows || [];
+    if (!criancas.length) return res.json([]);
+
+    const ids = criancas.map(r => r.id);
+    const ph = ids.map(() => '?').join(',');
+    db.all(`SELECT crianca_id, tipo, nome, telefone, whatsapp, email FROM responsaveis WHERE crianca_id IN (${ph})`, ids, (err2, responsaveis) => {
+      if (err2) return res.status(500).json({ error: err2.message });
+      db.all(`SELECT crianca_id, cep, rua, numero, complemento, bairro, cidade, estado FROM enderecos WHERE crianca_id IN (${ph})`, ids, (err3, enderecos) => {
+        if (err3) return res.status(500).json({ error: err3.message });
+        const respMap = {};
+        (responsaveis || []).forEach(r => { (respMap[r.crianca_id] = respMap[r.crianca_id] || []).push({ tipo: r.tipo, nome: r.nome, telefone: r.telefone, whatsapp: r.whatsapp, email: r.email }); });
+        const endMap = {};
+        (enderecos || []).forEach(e => { endMap[e.crianca_id] = { cep: e.cep, rua: e.rua, numero: e.numero, complemento: e.complemento, bairro: e.bairro, cidade: e.cidade, estado: e.estado }; });
+        res.json(criancas.map(c => ({
+          id: c.id,
+          nome: c.crianca_nome,
+          turma_id: c.turma_id,
+          turma_nome: c.turma_nome || 'Sem turma',
+          presencas: c.presencas || 0,
+          faltas_justificadas: c.faltas_justificadas || 0,
+          faltas_nao_justificadas: c.faltas_nao_justificadas || 0,
+          total_chamadas: c.total_chamadas || 0,
+          pct_presenca: c.total_chamadas > 0 ? Math.round((c.presencas / c.total_chamadas) * 100) : null,
+          responsaveis: respMap[c.id] || [],
+          endereco: endMap[c.id] || null
+        })));
+      });
+    });
+  });
+});
+
 module.exports = router;
