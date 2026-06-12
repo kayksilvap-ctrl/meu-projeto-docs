@@ -2,6 +2,9 @@
   "name": "sistema-chamada-anjo-guarda",
   "version": "1.0.0",
   "description": "Sistema de Chamada/Frequência - Associação Anjo da Guarda",
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "concurrently \"cd backend && npm start\" \"cd frontend && npm run dev\"",
     "install-all": "cd backend && npm install && cd ../frontend && npm install && cd .. && npm install",
