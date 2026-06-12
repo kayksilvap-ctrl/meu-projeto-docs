@@ -150,12 +150,20 @@ function createDatabase() {
     };
   }
 
-  // ===== Sem banco utilizável no Vercel =====
+  // ===== Sem banco utilizável no Vercel: stub que responde erro claro (NUNCA derrubar a função) =====
   if (isVercel) {
-    throw new Error(
-      'Nenhum banco disponível no Vercel: configure TURSO_DATABASE_URL e TURSO_AUTH_TOKEN ' +
-      '(persistente, recomendado) ou garanta que o better-sqlite3 foi instalado (dados somente em memória).'
+    const err = new Error(
+      'Banco não configurado: defina TURSO_DATABASE_URL e TURSO_AUTH_TOKEN no Vercel (crie grátis em turso.tech). ' +
+      'Sem isso a API não tem onde gravar os dados.'
     );
+    console.error('⚠ ' + err.message);
+    const fail = (...args) => { const cb = args.find(a => typeof a === 'function'); if (cb) cb(err); };
+    return {
+      run: fail, get: fail, all: fail,
+      prepare: () => ({ run: fail, finalize: () => {} }),
+      serialize: (fn) => fn(),
+      ready: () => Promise.resolve(),
+    };
   }
 
   // ===== SQLITE3 (last resort fallback - local only) =====
