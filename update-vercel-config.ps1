@@ -1,3 +1,0 @@
-$token="U8uE1PlOnk2PYlyLyyyKjXzudEM1fb4iLpbHJuYIrgT2PxWB"
-$body='{"framework":null,"buildCommand":"cd frontend && npm run build","outputDirectory":"frontend/dist","installCommand":"npm install && cd frontend && npm install"}'
-Invoke-RestMethod -Uri "https://api.vercel.com/v10/projects/gerenciador-de-chamadas-alunos" -Method Patch -Headers @{"Authorization"="Bearer $token"} -ContentType "application/json" -Body $body
