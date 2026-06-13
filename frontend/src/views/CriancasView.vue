@@ -478,12 +478,13 @@ onMounted(carregar)
 
 /* Modal */
 .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 16px; }
-.modal-content { background: white; border-radius: var(--radius); width: 100%; max-width: 750px; max-height: 90vh; display: flex; flex-direction: column; }
+.modal-content { background: white; border-radius: var(--radius); width: 100%; max-width: 750px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden; }
+.modal-content form { display: flex; flex-direction: column; min-height: 0; flex: 1; }
 .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid #E5E7EB; }
 .modal-title { font-size: 1.1rem; font-weight: 700; color: var(--text); }
 .modal-close { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: var(--text-secondary); padding: 4px 8px; border-radius: 6px; }
 .modal-close:hover { background: #F3F4F6; }
-.modal-body { padding: 24px; overflow-y: auto; flex: 1; }
+.modal-body { padding: 24px; overflow-y: auto; flex: 1; min-height: 0; -webkit-overflow-scrolling: touch; }
 .modal-footer { display: flex; justify-content: flex-end; gap: 12px; padding: 16px 24px; border-top: 1px solid #E5E7EB; }
 
 .form-section { margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid #E5E7EB; }
