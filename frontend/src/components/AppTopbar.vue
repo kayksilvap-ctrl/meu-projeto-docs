@@ -1,31 +1,47 @@
 <template>
   <header class="topbar">
     <div class="topbar-left">
-      <button class="hamburger-btn" @click="$emit('toggle-menu')">☰</button>
-      <input type="text" class="search-input" placeholder="🔍 Buscar..." v-model="busca" />
-      <select v-model="turmaFiltro" class="filter-select">
-        <option value="">Todas as turmas</option>
-        <option v-for="t in turmas" :key="t.id" :value="t.id">{{ t.nome }}</option>
-      </select>
-      <input type="date" class="filter-input" v-model="dataFiltro" />
+      <button class="hamburger-btn" @click="$emit('toggle-sidebar')" title="Alternar menu">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <line x1="3" y1="6" x2="21" y2="6" />
+          <line x1="3" y1="12" x2="21" y2="12" />
+          <line x1="3" y1="18" x2="21" y2="18" />
+        </svg>
+      </button>
+      <div class="breadcrumb">
+        <span class="breadcrumb-current">{{ pageTitle }}</span>
+      </div>
     </div>
     <div class="topbar-right">
-      <span class="notification-badge">🔔 <span class="badge">3</span></span>
-      <div class="user-avatar-sm">AD</div>
+      <div class="user-menu">
+        <div class="user-avatar-sm">AD</div>
+        <span class="user-name-sm">Admin</span>
+      </div>
     </div>
   </header>
 </template>
 
 <script setup>
-import { ref } from 'vue'
-import api from '../api'
-defineEmits(['toggle-menu'])
-const busca = ref('')
-const turmaFiltro = ref('')
-const dataFiltro = ref(new Date().toISOString().split('T')[0])
-const turmas = ref([])
+import { ref, watch } from 'vue'
+import { useRoute } from 'vue-router'
 
-api.getTurmas().then(r => turmas.value = r.data).catch(() => {})
+const route = useRoute()
+const pageTitle = ref('Dashboard')
+
+watch(() => route.path, (path) => {
+  const titles = {
+    '/': 'Dashboard',
+    '/criancas': 'Crianças',
+    '/turmas': 'Turmas',
+    '/fazer-chamada': 'Fazer Chamada',
+    '/resumo': 'Resumo por Turma',
+    '/relatorios': 'Relatórios',
+    '/configuracoes': 'Configurações'
+  }
+  pageTitle.value = titles[path] || 'Dashboard'
+}, { immediate: true })
+
+defineEmits(['toggle-menu', 'toggle-sidebar'])
 </script>
 
 <style scoped>
@@ -33,7 +49,7 @@ api.getTurmas().then(r => turmas.value = r.data).catch(() => {})
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 32px;
+  padding: 0 28px;
   background: white;
   border-bottom: 1px solid #E5E7EB;
   height: 60px;
@@ -42,81 +58,60 @@ api.getTurmas().then(r => turmas.value = r.data).catch(() => {})
 .topbar-left {
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex: 1;
+  gap: 14px;
 }
-.search-input {
-  padding: 8px 16px;
-  border: 1px solid #E5E7EB;
-  border-radius: var(--radius-sm);
-  font-size: 0.88rem;
-  width: 280px;
-  outline: none;
-  transition: var(--transition);
-  font-family: inherit;
+.hamburger-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text);
+  padding: 6px;
+  border-radius: 8px;
+  transition: background 0.2s;
 }
-.search-input:focus {
-  border-color: var(--red);
-  box-shadow: 0 0 0 3px rgba(229, 57, 53, 0.1);
-}
-.filter-select, .filter-input {
-  padding: 8px 12px;
-  border: 1px solid #E5E7EB;
-  border-radius: var(--radius-sm);
-  font-size: 0.82rem;
-  outline: none;
-  font-family: inherit;
-  background: white;
+.hamburger-btn:hover { background: #F3F4F6; }
+.breadcrumb {}
+.breadcrumb-current {
+  font-size: 1rem;
+  font-weight: 600;
   color: var(--text);
 }
 .topbar-right {
   display: flex;
   align-items: center;
-  gap: 16px;
 }
-.notification-badge {
-  position: relative;
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 4px 4px;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 1.1rem;
+  transition: background 0.2s;
 }
-.badge {
-  position: absolute;
-  top: -6px;
-  right: -8px;
-  background: var(--red);
-  color: white;
-  font-size: 0.65rem;
-  padding: 1px 5px;
-  border-radius: 10px;
-  font-weight: 700;
-}
-.hamburger-btn {
-  display: none;
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: var(--text);
-  padding: 4px;
-  line-height: 1;
-}
-
+.user-menu:hover { background: #F3F4F6; }
 .user-avatar-sm {
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: var(--blue);
+  background: linear-gradient(135deg, #E53935, #C62828);
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.7rem;
   font-weight: 700;
-  cursor: pointer;
+}
+.user-name-sm {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text);
 }
 @media (max-width: 960px) {
-  .topbar { padding: 12px 16px; }
-  .search-input { width: 150px; }
-  .hamburger-btn { display: block; }
+  .topbar { padding: 0 16px; }
+  .user-name-sm { display: none; }
 }
 </style>

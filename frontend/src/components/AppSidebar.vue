@@ -58,7 +58,7 @@ const menuItems = [
   { path: '/criancas', label: 'Crianças', icon: '👦' },
   { path: '/responsaveis', label: 'Responsáveis', icon: '👨‍👩‍👧' },
   { path: '/turmas', label: 'Turmas', icon: '🏫' },
-  { path: '/frequencia', label: 'Frequência', icon: '📅' },
+  { path: '/fazer-chamada', label: 'Fazer Chamada', icon: '📋' },
   { path: '/resumo', label: 'Resumo por Turma', icon: '🧾' },
   { path: '/relatorios', label: 'Relatórios', icon: '📈' },
   { path: '/configuracoes', label: 'Configurações', icon: '⚙️' }

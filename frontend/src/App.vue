@@ -1,42 +1,55 @@
 <template>
-  <div style="display:flex;height:100vh;overflow:hidden">
-    <div class="app-layout">
-      <!-- Sidebar -->
-      <AppSidebar ref="sidebarRef" />
-
-      <!-- Main Area -->
-      <div class="main-area">
-        <!-- Topbar -->
-        <AppTopbar @toggle-menu="toggleMenu" />
-
-        <!-- Content -->
-        <main class="content-area">
-          <router-view v-slot="{ Component, route }">
-            <transition name="page" mode="out-in">
-              <component :is="Component" :key="route.path" />
-            </transition>
-          </router-view>
-        </main>
-      </div>
+  <div class="app-shell">
+    <AppSidebar ref="sidebarRef" />
+    <div class="app-main" :class="{'sidebar-collapsed': sidebarCollapsed}">
+      <AppTopbar @toggle-menu="toggleMenu" @toggle-sidebar="toggleSidebar" />
+      <main class="app-content">
+        <router-view v-slot="{ Component, route }">
+          <transition name="page" mode="out-in">
+            <component :is="Component" :key="route.path" />
+          </transition>
+        </router-view>
+      </main>
     </div>
-
-    <!-- Global Modals -->
-    <router-view name="modal" />
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import AppSidebar from './components/AppSidebar.vue'
 import AppTopbar from './components/AppTopbar.vue'
 
 const sidebarRef = ref(null)
+const sidebarCollapsed = ref(window.innerWidth <= 1200)
 
 function toggleMenu() {
-  if (sidebarRef.value) {
-    sidebarRef.value.toggleMenu()
+  if (sidebarRef.value) sidebarRef.value.toggleMenu()
+}
+
+function toggleSidebar() {
+  if (window.innerWidth > 960) {
+    sidebarCollapsed.value = !sidebarCollapsed.value
+    document.documentElement.style.setProperty('--sidebar-width', sidebarCollapsed.value ? '70px' : '250px')
+  } else {
+    toggleMenu()
   }
 }
+
+function checkWidth() {
+  if (window.innerWidth <= 960) {
+    sidebarCollapsed.value = false
+    document.documentElement.style.setProperty('--sidebar-width', '0px')
+  } else if (window.innerWidth <= 1200) {
+    sidebarCollapsed.value = true
+    document.documentElement.style.setProperty('--sidebar-width', '70px')
+  } else {
+    sidebarCollapsed.value = false
+    document.documentElement.style.setProperty('--sidebar-width', '250px')
+  }
+}
+
+onMounted(() => { checkWidth(); window.addEventListener('resize', checkWidth) })
+onUnmounted(() => window.removeEventListener('resize', checkWidth))
 </script>
 
 <style>
@@ -50,7 +63,7 @@ function toggleMenu() {
   --orange-light: #FFF8E1;
   --blue: #3B82F6;
   --blue-light: #E3F2FD;
-  --bg: #F8F9FB;
+  --bg: #F0F2F5;
   --surface: #FFFFFF;
   --text: #1A1A1A;
   --text-secondary: #6B7280;
@@ -59,57 +72,47 @@ function toggleMenu() {
   --radius-sm: 8px;
   --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
   --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
-  --transition: 0.2s ease;
+  --shadow-lg: 0 10px 30px rgba(0,0,0,0.1);
+  --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
-
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body, #app { height: 100%; }
 body {
-  font-family: 'Inter', -apple-system, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
   background: var(--bg);
   color: var(--text);
+  font-size: 16px;
+  line-height: 1.5;
 }
-
-.app-layout {
-  display: flex;
-  height: 100vh;
-  overflow: hidden;
+.app-shell { display: flex; height: 100vh; overflow: hidden; }
+.app-main {
+  flex: 1; display: flex; flex-direction: column;
+  margin-left: var(--sidebar-width); overflow: hidden;
+  transition: margin-left var(--transition);
 }
-
-.main-area {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  margin-left: var(--sidebar-width);
-  overflow: hidden;
+.app-content {
+  flex: 1; overflow-y: auto; overflow-x: hidden;
+  padding: 24px 32px; background: var(--bg);
 }
-
-.content-area {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px 32px;
-  background: var(--bg);
-}
-
-@media (max-width: 960px) {
-  .main-area { margin-left: 0; }
-  .content-area { padding: 16px; }
-}
-@media (max-width: 600px) {
-  .content-area { padding: 12px; }
-}
-
 .page-enter-active { transition: opacity 0.2s ease, transform 0.2s ease; }
 .page-leave-active { transition: opacity 0.15s ease; }
-.page-enter-from { opacity: 0; transform: translateY(8px); }
+.page-enter-from { opacity: 0; transform: translateY(10px); }
 .page-leave-to { opacity: 0; }
-
-::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
-
-/* Utility classes */
-.ml-3 { margin-left: 12px; }
+@media (max-width: 1200px) {
+  .app-main { margin-left: 70px; }
+  .app-content { padding: 20px 24px; }
+}
+@media (max-width: 960px) {
+  .app-main { margin-left: 0; }
+  .app-content { padding: 16px; }
+}
+@media (max-width: 600px) {
+  .app-content { padding: 12px; }
+}
 </style>
