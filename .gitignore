@@ -6,3 +6,4 @@ package-lock.json
 backend/api/node_modules/
 frontend/dist/
 dist/
+.vercel
