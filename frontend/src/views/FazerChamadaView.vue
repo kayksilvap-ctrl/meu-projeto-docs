@@ -200,6 +200,7 @@ function selecionarTurma(t) {
 async function iniciarChamada() {
   if (!turmaSelecionada.value) return
   try {
+    // A API ja retorna responsaveis e enderecos (otimizado)
     const resp = await api.getCriancas({ turma_id: turmaSelecionada.value.id })
     const hojeISO = new Date().toISOString().split('T')[0]
     const freqResp = await api.getFrequencias({ data: hojeISO, turma_id: turmaSelecionada.value.id })
@@ -207,21 +208,10 @@ async function iniciarChamada() {
     const freqHoje = {}
     freqResp.data.forEach(f => { freqHoje[f.crianca_id] = f.status })
 
-    // Carregar dados completos
-    const detalhadas = await Promise.all(
-      resp.data.map(async (c) => {
-        try {
-          const d = await api.getCrianca(c.id)
-          return d.data
-        } catch { return c }
-      })
-    )
-
-    criancas.value = detalhadas.map(c => ({
+    criancas.value = resp.data.map(c => ({
       ...c,
       _status: freqHoje[c.id] || '',
-      _motivo: '',
-      _id_count: 0
+      _motivo: ''
     }))
 
     etapa.value = 'chamando'

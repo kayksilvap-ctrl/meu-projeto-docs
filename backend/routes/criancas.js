@@ -17,7 +17,34 @@ router.get('/', (req, res) => {
   if (where.length) query += ' WHERE ' + where.join(' AND ');
   query += ' ORDER BY c.nome';
 
-  db.all(query, params, (err, rows) => { if (err) return res.status(500).json({ error: err.message }); res.json(rows); });
+  db.all(query, params, (err, rows) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (!rows.length) return res.json([]);
+
+    // Buscar responsaveis e enderecos de todas as criancas em 2 queries
+    const ids = rows.map(r => r.id);
+    const ph = ids.map(() => '?').join(',');
+
+    db.all(`SELECT * FROM responsaveis WHERE crianca_id IN (${ph})`, ids, (err2, responsaveis) => {
+      if (err2) return res.status(500).json({ error: err2.message });
+      const respMap = {};
+      (responsaveis || []).forEach(r => {
+        (respMap[r.crianca_id] = respMap[r.crianca_id] || []).push(r);
+      });
+
+      db.all(`SELECT * FROM enderecos WHERE crianca_id IN (${ph})`, ids, (err3, enderecos) => {
+        if (err3) return res.status(500).json({ error: err3.message });
+        const endMap = {};
+        (enderecos || []).forEach(e => { endMap[e.crianca_id] = e; });
+
+        res.json(rows.map(r => ({
+          ...r,
+          responsaveis: respMap[r.id] || [],
+          endereco: endMap[r.id] || null
+        })));
+      });
+    });
+  });
 });
 
 router.get('/:id', (req, res) => {
