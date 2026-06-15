@@ -1,5 +1,4 @@
 <template>
-  <!-- Mobile overlay -->
   <div v-if="isMobile && menuAberto" class="mobile-overlay" @click="fecharMenu"></div>
 
   <aside class="sidebar" :class="{ 'sidebar-open': !isMobile || menuAberto }">
@@ -33,7 +32,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import LogoAnjo from './LogoAnjo.vue'
 
@@ -81,6 +80,7 @@ const menuItems = [
   display: flex;
   flex-direction: column;
   z-index: 100;
+  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sidebar-header {
@@ -195,9 +195,7 @@ const menuItems = [
 
 @media (max-width: 960px) {
   .sidebar {
-    display: flex;
     left: -280px;
-    transition: left 0.3s ease;
     box-shadow: 2px 0 12px rgba(0,0,0,0.15);
   }
   .sidebar-open {
@@ -209,9 +207,15 @@ const menuItems = [
     inset: 0;
     background: rgba(0,0,0,0.4);
     z-index: 99;
+    animation: fadeIn 0.2s ease;
   }
   .btn-close-sidebar {
     display: block;
   }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 </style>

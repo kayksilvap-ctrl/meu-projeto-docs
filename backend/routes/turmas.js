@@ -12,14 +12,13 @@ router.get('/', (req, res) => {
 router.post('/', (req, res) => {
   const { nome, professor } = req.body;
   if (!nome?.trim()) return res.status(400).json({ error: 'Nome obrigatório' });
-  const stmt = db.prepare('INSERT INTO turmas (nome, professor) VALUES (?,?)');
-  stmt.run(nome.trim(), professor || null, function(err) {
+  // Use db.run com callback (Turso + better-sqlite3)
+  db.run('INSERT INTO turmas (nome, professor) VALUES (?,?)', [nome.trim(), professor || null], function(err) {
     if (err) return res.status(500).json({ error: err.message });
     db.get('SELECT * FROM turmas WHERE id = ?', [this.lastID], (err, row) => {
       res.status(201).json(row);
     });
   });
-  stmt.finalize();
 });
 
 router.put('/:id', (req, res) => {

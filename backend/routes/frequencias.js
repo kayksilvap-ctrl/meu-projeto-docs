@@ -2,7 +2,6 @@ const express = require('express');
 const router = express.Router();
 const db = require('../database');
 
-// GET / - Listar frequencias com dados da crianca
 router.get('/', (req, res) => {
   const { data, turma_id, crianca_id } = req.query;
 
@@ -27,7 +26,6 @@ router.get('/', (req, res) => {
   });
 });
 
-// POST / - Registrar frequencia (upsert)
 router.post('/', (req, res) => {
   const { crianca_id, data, status, motivo, observacao } = req.body;
   if (!crianca_id || !data || !status) {
@@ -37,32 +35,30 @@ router.post('/', (req, res) => {
     return res.status(400).json({ error: 'Status inválido' });
   }
 
-  const stmt = db.prepare(
+  db.run(
     `INSERT OR REPLACE INTO frequencias (crianca_id, data, status, motivo, observacao, created_at)
-     VALUES (?, ?, ?, ?, ?, datetime('now','localtime'))`
-  );
-  stmt.run(crianca_id, data, status, motivo||null, observacao||null, function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    res.json({ message: 'Registrado', id: this.lastID });
-  });
-  stmt.finalize();
+     VALUES (?, ?, ?, ?, ?, datetime('now','localtime'))`,
+    [crianca_id, data, status, motivo||null, observacao||null],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ message: 'Registrado', id: this.lastID });
+    });
 });
 
-// GET /dashboard - KPIs
 router.get('/dashboard', (req, res) => {
   const { data, turma_id } = req.query;
   const dataFilter = data || new Date().toISOString().split('T')[0];
 
-  let criancaFilter = '';
   let params = [dataFilter];
-  if (turma_id) { criancaFilter = ' AND c.turma_id = ?'; params.push(turma_id); }
+  let turmaWhere = '';
+  if (turma_id) { turmaWhere = ' AND c.turma_id = ?'; params.push(turma_id); }
 
   db.get(`
     SELECT
       (SELECT COUNT(*) FROM criancas c ${turma_id ? 'WHERE c.turma_id = ?' : ''}) as total_criancas,
-      (SELECT COUNT(*) FROM frequencias f JOIN criancas c ON f.crianca_id = c.id WHERE f.data = ? AND f.status = 'presente' ${criancaFilter}) as presentes,
-      (SELECT COUNT(*) FROM frequencias f JOIN criancas c ON f.crianca_id = c.id WHERE f.data = ? AND f.status = 'ausente_justificada' ${criancaFilter}) as ausentes_justificadas,
-      (SELECT COUNT(*) FROM frequencias f JOIN criancas c ON f.crianca_id = c.id WHERE f.data = ? AND f.status = 'ausente_nao_justificada' ${criancaFilter}) as ausentes_nao_justificadas
+      (SELECT COUNT(*) FROM frequencias f JOIN criancas c ON f.crianca_id = c.id WHERE f.data = ? AND f.status = 'presente' ${turmaWhere}) as presentes,
+      (SELECT COUNT(*) FROM frequencias f JOIN criancas c ON f.crianca_id = c.id WHERE f.data = ? AND f.status = 'ausente_justificada' ${turmaWhere}) as ausentes_justificadas,
+      (SELECT COUNT(*) FROM frequencias f JOIN criancas c ON f.crianca_id = c.id WHERE f.data = ? AND f.status = 'ausente_nao_justificada' ${turmaWhere}) as ausentes_nao_justificadas
   `, turma_id ? [turma_id, dataFilter, dataFilter, dataFilter, dataFilter] : [dataFilter, dataFilter, dataFilter, dataFilter], (err, row) => {
     if (err) return res.status(500).json({ error: err.message });
 
@@ -80,7 +76,6 @@ router.get('/dashboard', (req, res) => {
   });
 });
 
-// GET /relatorios - Dados para gráficos (últimos 30 dias)
 router.get('/relatorios', (req, res) => {
   db.all(`
     SELECT f.data,
@@ -93,7 +88,6 @@ router.get('/relatorios', (req, res) => {
   `, [], (err, rows) => {
     if (err) return res.status(500).json({ error: err.message });
 
-    // Totais agrupados por turma
     db.all(`
       SELECT t.nome, t.id,
         COUNT(CASE WHEN f.status = 'presente' THEN 1 END) as presentes,
@@ -109,7 +103,6 @@ router.get('/relatorios', (req, res) => {
   });
 });
 
-// GET /resumo - Acumulado por crianca (presencas, faltas justificadas/nao justificadas + contatos)
 router.get('/resumo', (req, res) => {
   const { turma_id, de, ate } = req.query;
 

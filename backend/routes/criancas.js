@@ -21,7 +21,6 @@ router.get('/', (req, res) => {
     if (err) return res.status(500).json({ error: err.message });
     if (!rows.length) return res.json([]);
 
-    // Buscar responsaveis e enderecos de todas as criancas em 2 queries
     const ids = rows.map(r => r.id);
     const ph = ids.map(() => '?').join(',');
 
@@ -52,7 +51,6 @@ router.get('/:id', (req, res) => {
     [req.params.id], (err, row) => {
       if (err) return res.status(500).json({ error: err.message });
       if (!row) return res.status(404).json({ error: 'Não encontrada' });
-      // Get responsaveis and endereco
       db.all('SELECT * FROM responsaveis WHERE crianca_id = ?', [row.id], (err2, responsaveis) => {
         db.get('SELECT * FROM enderecos WHERE crianca_id = ?', [row.id], (err3, endereco) => {
           res.json({ ...row, responsaveis: responsaveis || [], endereco: endereco || null });
@@ -65,27 +63,26 @@ router.post('/', (req, res) => {
   const { nome, data_nascimento, sexo, turma_id, observacoes, responsaveis, endereco } = req.body;
   if (!nome?.trim()) return res.status(400).json({ error: 'Nome obrigatório' });
 
-  const stmt = db.prepare('INSERT INTO criancas (nome, data_nascimento, sexo, turma_id, observacoes) VALUES (?,?,?,?,?)');
-  stmt.run(nome.trim(), data_nascimento||null, sexo||null, turma_id||null, observacoes||null, function(err) {
-    if (err) return res.status(500).json({ error: err.message });
-    const criancaId = this.lastID;
+  // Use db.run (compatível com Turso e better-sqlite3)
+  db.run('INSERT INTO criancas (nome, data_nascimento, sexo, turma_id, observacoes) VALUES (?,?,?,?,?)',
+    [nome.trim(), data_nascimento||null, sexo||null, turma_id||null, observacoes||null],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      const criancaId = this.lastID;
 
-    // Insert responsaveis
-    if (responsaveis && Array.isArray(responsaveis)) {
-      const rStmt = db.prepare('INSERT INTO responsaveis (crianca_id, tipo, nome, telefone, whatsapp, email) VALUES (?,?,?,?,?,?)');
-      responsaveis.forEach(r => rStmt.run(criancaId, r.tipo||'outro', r.nome, r.telefone||null, r.whatsapp||null, r.email||null));
-      rStmt.finalize();
-    }
+      if (responsaveis && Array.isArray(responsaveis) && responsaveis.length) {
+        const rStmt = db.prepare('INSERT INTO responsaveis (crianca_id, tipo, nome, telefone, whatsapp, email) VALUES (?,?,?,?,?,?)');
+        responsaveis.forEach(r => rStmt.run(criancaId, r.tipo||'outro', r.nome, r.telefone||null, r.whatsapp||null, r.email||null));
+        rStmt.finalize();
+      }
 
-    // Insert endereco
-    if (endereco) {
-      db.run('INSERT INTO enderecos (crianca_id, cep, rua, numero, complemento, bairro, cidade, estado) VALUES (?,?,?,?,?,?,?,?)',
-        [criancaId, endereco.cep||null, endereco.rua||null, endereco.numero||null, endereco.complemento||null, endereco.bairro||null, endereco.cidade||null, endereco.estado||null]);
-    }
+      if (endereco) {
+        db.run('INSERT INTO enderecos (crianca_id, cep, rua, numero, complemento, bairro, cidade, estado) VALUES (?,?,?,?,?,?,?,?)',
+          [criancaId, endereco.cep||null, endereco.rua||null, endereco.numero||null, endereco.complemento||null, endereco.bairro||null, endereco.cidade||null, endereco.estado||null]);
+      }
 
-    db.get('SELECT * FROM criancas WHERE id = ?', [criancaId], (err2, row) => res.status(201).json(row));
-  });
-  stmt.finalize();
+      db.get('SELECT * FROM criancas WHERE id = ?', [criancaId], (err2, row) => res.status(201).json(row));
+    });
 });
 
 router.put('/:id', (req, res) => {

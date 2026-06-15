@@ -1,11 +1,27 @@
 import axios from 'axios'
 
-const http = axios.create({ baseURL: '/api', timeout: 10000 })
+const http = axios.create({ baseURL: '/api', timeout: 30000 })
 
-// Se a API exigir token (API_TOKEN no backend), defina VITE_API_TOKEN no build do frontend
 if (import.meta.env.VITE_API_TOKEN) {
   http.defaults.headers.common['x-api-token'] = import.meta.env.VITE_API_TOKEN
 }
+
+// Response interceptor - global error handling
+http.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.code === 'ECONNABORTED') {
+      console.error('⚠️ Timeout da API - tente novamente')
+    } else if (error.response?.status === 429) {
+      console.error('⚠️ Muitas requisições - aguarde um momento')
+    } else if (error.response?.status === 500) {
+      console.error('⚠️ Erro interno do servidor')
+    } else if (!error.response) {
+      console.error('⚠️ Servidor indisponível')
+    }
+    return Promise.reject(error)
+  }
+)
 
 export { http }
 export default {
@@ -13,7 +29,7 @@ export default {
   createTurma: (d) => http.post('/turmas', d),
   updateTurma: (id, d) => http.put(`/turmas/${id}`, d),
   deleteTurma: (id) => http.delete(`/turmas/${id}`),
-  getCriancas: (params) => http.get('/criancas', { params }),
+  getCriancas: (params) => http.get('/criancas', { params, timeout: 15000 }),
   getCrianca: (id) => http.get(`/criancas/${id}`),
   createCrianca: (d) => http.post('/criancas', d),
   updateCrianca: (id, d) => http.put(`/criancas/${id}`, d),

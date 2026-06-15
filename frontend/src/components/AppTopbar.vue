@@ -32,8 +32,10 @@ watch(() => route.path, (path) => {
   const titles = {
     '/': 'Dashboard',
     '/criancas': 'Crianças',
+    '/responsaveis': 'Responsáveis',
     '/turmas': 'Turmas',
     '/fazer-chamada': 'Fazer Chamada',
+    '/frequencia': 'Frequência',
     '/resumo': 'Resumo por Turma',
     '/relatorios': 'Relatórios',
     '/configuracoes': 'Configurações'
