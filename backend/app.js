@@ -152,4 +152,21 @@ app.get('/estatisticas', (req, res) => {
   });
 });
 
+// ===== Rede de segurança da DEMO (apresentação) =====
+// Em modo VOLÁTIL (:memory: no Vercel sem Turso) os dados somem a cada cold start.
+// Para nunca cair numa tela vazia durante a apresentação, semeamos a demo
+// automaticamente quando a instância volátil sobe SEM dados.
+// IMPORTANTE: só roda em modo 'memoria'. Em modo PERSISTENTE (Turso/arquivo) NUNCA
+// executa — dados reais ficam protegidos e o seed permanece só manual (POST /seed).
+if (db.mode === 'memoria') {
+  Promise.resolve(db.ready ? db.ready() : true).then(() => {
+    db.get('SELECT COUNT(*) AS c FROM turmas', (err, row) => {
+      if (!err && row && (row.c || 0) === 0) {
+        console.log('🌱 Banco volátil vazio — carregando a demo automaticamente...');
+        Promise.resolve(seed()).catch(e => console.error('Auto-seed falhou:', e.message));
+      }
+    });
+  }).catch(() => {});
+}
+
 module.exports = app;
