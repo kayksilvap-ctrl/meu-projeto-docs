@@ -15,11 +15,11 @@
     </div>
 
     <div class="cards-grid">
-      <div v-for="item in filtrados" :key="item.crianca_id" class="responsavel-card">
+      <div v-for="item in filtrados" :key="item.id" class="responsavel-card">
         <div class="card-header">
-          <div class="crianca-avatar">{{ item.crianca_nome?.charAt(0) }}</div>
+          <div class="crianca-avatar">{{ item.nome?.charAt(0) }}</div>
           <div class="crianca-info">
-            <div class="crianca-nome">{{ item.crianca_nome }}</div>
+            <div class="crianca-nome">{{ item.nome }}</div>
             <div class="crianca-turma">{{ item.turma_nome || 'Sem turma' }}</div>
           </div>
         </div>
@@ -74,9 +74,9 @@ const filtrados = computed(() => {
   let list = dados.value
   if (turmaFiltro.value) list = list.filter(item => item.turma_id == turmaFiltro.value)
   if (busca.value) {
-    const t = busca.value.toLowerCase()
+    const t = busca.value.trim().toLowerCase()
     list = list.filter(item =>
-      item.crianca_nome.toLowerCase().includes(t) ||
+      (item.nome || '').toLowerCase().includes(t) ||
       (item.responsaveis || []).some(r => r.nome?.toLowerCase().includes(t))
     )
   }
