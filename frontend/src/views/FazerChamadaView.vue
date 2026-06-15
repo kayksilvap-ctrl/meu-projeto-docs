@@ -133,8 +133,8 @@
         <div class="footer-info">
           <span>{{ stats.presentes + stats.justificadas + stats.naoJustificadas }} de {{ criancas.length }} registrados</span>
         </div>
-        <button class="btn-primary btn-lg" @click="finalizarChamada" :disabled="stats.pendentes > 0">
-          ✅ Finalizar Chamada
+        <button class="btn-primary btn-lg" @click="finalizarChamada" :disabled="stats.pendentes > 0 || salvando">
+          {{ salvando ? '⏳ Salvando...' : '✅ Finalizar Chamada' }}
         </button>
       </div>
       <div v-if="stats.pendentes > 0" class="warning-msg">
@@ -172,6 +172,7 @@ const etapa = ref('selecao')
 const turmas = ref([])
 const criancas = ref([])
 const turmaSelecionada = ref(null)
+const salvando = ref(false)
 const dataHoje = ref(new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Bahia' }))
 
 const stats = computed(() => {
@@ -226,32 +227,40 @@ function marcar(crianca, status) {
 }
 
 async function finalizarChamada() {
-  if (stats.value.pendentes > 0) return
+  if (stats.value.pendentes > 0 || salvando.value) return
+  salvando.value = true
 
   const hojeISO = new Date().toISOString().split('T')[0]
-  let sucessos = 0, erros = 0
-
-  for (const c of criancas.value) {
-    try {
-      await api.registrarFrequencia({
-        crianca_id: c.id,
-        data: hojeISO,
-        status: c._status,
-        motivo: c._motivo || undefined
-      })
-      sucessos++
-    } catch {
-      erros++
-    }
-  }
-
-  statsFinal.value = {
+  // guarda o resumo antes de trocar de etapa
+  const resumo = {
     presentes: stats.value.presentes,
     justificadas: stats.value.justificadas,
     naoJustificadas: stats.value.naoJustificadas
   }
 
-  etapa.value = 'finalizado'
+  try {
+    // Salva TODAS as presenças em paralelo (antes era uma a uma, ~0,2s cada =
+    // vários segundos numa turma cheia). allSettled p/ não abortar tudo se uma falhar.
+    const resultados = await Promise.allSettled(
+      criancas.value.map(c => api.registrarFrequencia({
+        crianca_id: c.id,
+        data: hojeISO,
+        status: c._status,
+        motivo: c._motivo || undefined
+      }))
+    )
+
+    const erros = resultados.filter(r => r.status === 'rejected').length
+    if (erros) {
+      alert(`Atenção: ${erros} de ${criancas.value.length} registro(s) não salvaram. Verifique a conexão e tente finalizar novamente.`)
+      return // não avança para a tela de sucesso se algo falhou
+    }
+
+    statsFinal.value = resumo
+    etapa.value = 'finalizado'
+  } finally {
+    salvando.value = false
+  }
 }
 
 function cancelarChamada() {
