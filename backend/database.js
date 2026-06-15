@@ -36,13 +36,19 @@ function createDatabase() {
       authToken: process.env.TURSO_AUTH_TOKEN,
     });
 
-    // Init schema async
-    Promise.all(SCHEMA_SQL.map(sql => turso.execute({ sql }).catch(() => {})))
-      .then(() => console.log('✅ Schema (Turso)'))
-      .catch(() => {});
+    // Init schema async — guardamos a Promise REAL para poder aguardá-la antes dos primeiros writes.
+    // Antes era fire-and-forget e ready() devolvia Promise.resolve() (falso), o que permitia
+    // INSERT antes do CREATE TABLE terminar ("no such table" intermitente no cold start).
+    const schemaReady = Promise.all(
+      SCHEMA_SQL.map(sql => turso.execute({ sql }))
+    )
+      .then(() => { console.log('✅ Schema (Turso)'); return true; })
+      .catch(err => { console.error('⚠ Falha ao criar schema no Turso:', err.message); return false; });
 
     return {
       _turso: turso,
+      mode: 'turso',
+      persistent: true,
       run: (sql, params, callback) => {
         if (typeof params === 'function') { callback = params; params = []; }
         turso.execute({ sql, args: params || [] })
@@ -79,7 +85,7 @@ function createDatabase() {
         finalize: () => {}
       }),
       serialize: (fn) => fn(),
-      ready: () => Promise.resolve(),
+      ready: () => schemaReady,
     };
   } catch (e) {
     console.error('⚠ Turso inválido (' + e.message + ') — confira TURSO_DATABASE_URL/TURSO_AUTH_TOKEN no painel do Vercel; usando o próximo modo de banco.');
@@ -107,9 +113,13 @@ function createDatabase() {
     _db.exec('COMMIT');
 
     console.log('✅ Conectado ao better-sqlite3 (' + (isVercel ? 'Vercel' : 'local') + ')');
+    if (isVercel) console.warn('⚠ MODO VOLÁTIL (:memory:) — os dados SOMEM no cold start. Configure TURSO_DATABASE_URL/TURSO_AUTH_TOKEN no Vercel para persistir.');
 
     // Create sync wrapper that stays in-memory
     return {
+      // isVercel -> ':memory:' (volátil); local -> arquivo no disco (persistente)
+      mode: isVercel ? 'memoria' : 'sqlite',
+      persistent: !isVercel,
       run: (sql, params, callback) => {
         if (typeof params === 'function') { callback = params; params = []; }
         try {
@@ -162,6 +172,8 @@ function createDatabase() {
     console.error('⚠ ' + err.message);
     const fail = (...args) => { const cb = args.find(a => typeof a === 'function'); if (cb) cb(err); };
     return {
+      mode: 'no-db',
+      persistent: false,
       run: fail, get: fail, all: fail,
       prepare: () => ({ run: fail, finalize: () => {} }),
       serialize: (fn) => fn(),
@@ -182,6 +194,8 @@ function createDatabase() {
   console.log('✅ Conectado ao SQLite (fallback)');
 
   return {
+    mode: 'sqlite',
+    persistent: true,
     run: (sql, params, callback) => {
       if (typeof params === 'function') { callback = params; params = []; }
       _db.run(sql, params || [], function (err) {

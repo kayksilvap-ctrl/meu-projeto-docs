@@ -43,12 +43,29 @@ app.use((req, res, next) => {
   res.status(401).json({ error: 'Token inválido ou ausente (header x-api-token)' });
 });
 
+// Garante que o schema (CREATE TABLE) terminou antes de qualquer escrita.
+// No Turso o schema é criado de forma assíncrona no boot; sem isso o primeiro
+// write após um cold start podia falhar com "no such table". db.ready() resolve
+// imediatamente nos modos síncronos (better-sqlite3/sqlite3), então não custa nada.
+app.use((req, res, next) => {
+  if (req.method === 'GET' || req.path === '/health') return next();
+  Promise.resolve(db.ready ? db.ready() : true).then(() => next()).catch(() => next());
+});
+
 app.use('/turmas', turmasRouter);
 app.use('/criancas', criancasRouter);
 app.use('/frequencias', frequenciasRouter);
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', message: 'API do Sistema de Chamada funcionando!' });
+  // Revela o MODO de banco (sem expor URL/token) para o usuário conferir no navegador
+  // se está PERSISTENTE. mode: 'turso' (persistente) | 'sqlite' (arquivo local, persistente)
+  // | 'memoria' (Vercel sem Turso = VOLÁTIL, some no cold start) | 'no-db'.
+  res.json({
+    status: 'ok',
+    message: 'API do Sistema de Chamada funcionando!',
+    db: db.mode || 'desconhecido',
+    persistente: db.persistent === true,
+  });
 });
 
 app.get('/dashboard', (req, res) => {
@@ -101,18 +118,27 @@ app.post('/import', (req, res) => {
 });
 
 app.post('/seed', (req, res) => {
-  seed();
-  res.json({ message: '🌱 Seed iniciado! Dados de demonstração serão carregados em alguns segundos.' });
+  // Aguarda o seed CONCLUIR antes de responder. No Vercel a função serverless pode ser
+  // congelada assim que a resposta sai; se respondêssemos antes, os INSERTs do seed
+  // (assíncronos no Turso) podiam ser interrompidos no meio. Agora a resposta confirma o fim.
+  Promise.resolve(seed())
+    .then(r => res.json({ message: `🌱 Seed concluído! ${r.turmas} turmas e ${r.criancas} crianças carregadas.`, ...r }))
+    .catch(err => res.status(500).json({ error: 'Falha no seed: ' + err.message }));
 });
 
 app.delete('/reset', (req, res) => {
-  db.serialize(() => {
-    db.run('DELETE FROM frequencias'); db.run('DELETE FROM enderecos'); db.run('DELETE FROM responsaveis'); db.run('DELETE FROM criancas'); db.run('DELETE FROM turmas');
-    // responde só após o último delete concluir (evita race no modo assíncrono)
-    db.run("DELETE FROM sqlite_sequence WHERE name IN ('turmas','criancas','frequencias')", [], () => {
-      res.json({ message: 'Todos os dados foram resetados' });
-    });
-  });
+  // Responde só depois que TODOS os deletes confirmarem (no Turso as Promises não têm ordem
+  // garantida, então esperamos a barreira em vez de assumir que o último termina por último).
+  const ops = [
+    cb => db.run('DELETE FROM frequencias', cb),
+    cb => db.run('DELETE FROM enderecos', cb),
+    cb => db.run('DELETE FROM responsaveis', cb),
+    cb => db.run('DELETE FROM criancas', cb),
+    cb => db.run('DELETE FROM turmas', cb),
+    cb => db.run("DELETE FROM sqlite_sequence WHERE name IN ('turmas','criancas','responsaveis','enderecos','frequencias')", cb),
+  ];
+  let pend = ops.length;
+  ops.forEach(op => op(() => { if (--pend === 0) res.json({ message: 'Todos os dados foram resetados' }); }));
 });
 
 app.get('/estatisticas', (req, res) => {

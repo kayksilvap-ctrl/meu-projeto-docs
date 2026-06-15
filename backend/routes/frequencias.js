@@ -49,27 +49,38 @@ router.get('/dashboard', (req, res) => {
   const { data, turma_id } = req.query;
   const dataFilter = data || new Date().toISOString().split('T')[0];
 
-  let params = [dataFilter];
-  let turmaWhere = '';
-  if (turma_id) { turmaWhere = ' AND c.turma_id = ?'; params.push(turma_id); }
+  // Fragmentos de filtro por turma (presentes só quando turma_id é enviado)
+  const turmaCount = turma_id ? 'WHERE c.turma_id = ?' : '';
+  const turmaWhere = turma_id ? ' AND c.turma_id = ?' : '';
+
+  // Os parâmetros precisam seguir EXATAMENTE a ordem em que os ? aparecem na query.
+  // Antes havia descasamento (3 ou 7 placeholders contra 4/5 valores) -> Turso devolvia
+  // "Too many parameter values were provided" e a tela inicial quebrava.
+  const params = [];
+  if (turma_id) params.push(turma_id);                            // total_criancas
+  params.push(dataFilter); if (turma_id) params.push(turma_id);   // presentes
+  params.push(dataFilter); if (turma_id) params.push(turma_id);   // ausentes_justificadas
+  params.push(dataFilter); if (turma_id) params.push(turma_id);   // ausentes_nao_justificadas
 
   db.get(`
     SELECT
-      (SELECT COUNT(*) FROM criancas c ${turma_id ? 'WHERE c.turma_id = ?' : ''}) as total_criancas,
+      (SELECT COUNT(*) FROM criancas c ${turmaCount}) as total_criancas,
       (SELECT COUNT(*) FROM frequencias f JOIN criancas c ON f.crianca_id = c.id WHERE f.data = ? AND f.status = 'presente' ${turmaWhere}) as presentes,
       (SELECT COUNT(*) FROM frequencias f JOIN criancas c ON f.crianca_id = c.id WHERE f.data = ? AND f.status = 'ausente_justificada' ${turmaWhere}) as ausentes_justificadas,
       (SELECT COUNT(*) FROM frequencias f JOIN criancas c ON f.crianca_id = c.id WHERE f.data = ? AND f.status = 'ausente_nao_justificada' ${turmaWhere}) as ausentes_nao_justificadas
-  `, turma_id ? [turma_id, dataFilter, dataFilter, dataFilter, dataFilter] : [dataFilter, dataFilter, dataFilter, dataFilter], (err, row) => {
+  `, params, (err, row) => {
     if (err) return res.status(500).json({ error: err.message });
 
-    const total_registrados = row.presentes + row.ausentes_justificadas + row.ausentes_nao_justificadas;
-    const taxa = total_registrados > 0 ? Math.round((row.presentes / total_registrados) * 100) : 0;
+    const r = row || {};
+    const presentes = r.presentes || 0;
+    const total_registrados = presentes + (r.ausentes_justificadas || 0) + (r.ausentes_nao_justificadas || 0);
+    const taxa = total_registrados > 0 ? Math.round((presentes / total_registrados) * 100) : 0;
 
     res.json({
-      total_criancas: row.total_criancas || 0,
-      presentes: row.presentes || 0,
-      ausentes_justificadas: row.ausentes_justificadas || 0,
-      ausentes_nao_justificadas: row.ausentes_nao_justificadas || 0,
+      total_criancas: r.total_criancas || 0,
+      presentes: presentes,
+      ausentes_justificadas: r.ausentes_justificadas || 0,
+      ausentes_nao_justificadas: r.ausentes_nao_justificadas || 0,
       taxa_presenca: taxa,
       data: dataFilter
     });

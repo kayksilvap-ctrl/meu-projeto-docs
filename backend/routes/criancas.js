@@ -70,18 +70,30 @@ router.post('/', (req, res) => {
       if (err) return res.status(500).json({ error: err.message });
       const criancaId = this.lastID;
 
+      // Insere responsáveis/endereço e SÓ responde depois que todos confirmarem.
+      // No Turso (assíncrono) isso elimina o race em que a resposta 201 voltava
+      // antes dos filhos gravarem (o front recarregava e não via responsável/endereço).
+      const filhos = [];
+
       if (responsaveis && Array.isArray(responsaveis) && responsaveis.length) {
         const rStmt = db.prepare('INSERT INTO responsaveis (crianca_id, tipo, nome, telefone, whatsapp, email) VALUES (?,?,?,?,?,?)');
-        responsaveis.forEach(r => rStmt.run(criancaId, r.tipo||'outro', r.nome, r.telefone||null, r.whatsapp||null, r.email||null));
-        rStmt.finalize();
+        responsaveis.forEach(r => filhos.push(cb =>
+          rStmt.run(criancaId, r.tipo||'outro', r.nome, r.telefone||null, r.whatsapp||null, r.email||null, cb)));
+        // finaliza após todos os run() terem sido disparados
+        filhos.push(cb => { rStmt.finalize(); cb(); });
       }
 
       if (endereco) {
-        db.run('INSERT INTO enderecos (crianca_id, cep, rua, numero, complemento, bairro, cidade, estado) VALUES (?,?,?,?,?,?,?,?)',
-          [criancaId, endereco.cep||null, endereco.rua||null, endereco.numero||null, endereco.complemento||null, endereco.bairro||null, endereco.cidade||null, endereco.estado||null]);
+        filhos.push(cb => db.run('INSERT INTO enderecos (crianca_id, cep, rua, numero, complemento, bairro, cidade, estado) VALUES (?,?,?,?,?,?,?,?)',
+          [criancaId, endereco.cep||null, endereco.rua||null, endereco.numero||null, endereco.complemento||null, endereco.bairro||null, endereco.cidade||null, endereco.estado||null], cb));
       }
 
-      db.get('SELECT * FROM criancas WHERE id = ?', [criancaId], (err2, row) => res.status(201).json(row));
+      let pendentes = filhos.length;
+      const concluir = () => {
+        db.get('SELECT * FROM criancas WHERE id = ?', [criancaId], (err2, row) => res.status(201).json(row));
+      };
+      if (!pendentes) return concluir();
+      filhos.forEach(fn => fn(() => { if (--pendentes === 0) concluir(); }));
     });
 });
 
@@ -94,26 +106,38 @@ router.put('/:id', (req, res) => {
       if (err) return res.status(500).json({ error: err.message });
       if (this.changes === 0) return res.status(404).json({ error: 'Não encontrada' });
 
+      // Cada branch é uma função(cb) que executa DELETE -> INSERT em ordem e chama cb no fim.
+      // Só respondemos 'Atualizada' depois que todas concluírem — evita, no Turso, o front
+      // recarregar dados antigos/parciais e o risco de INSERT rodar antes do DELETE.
+      const branches = [];
+
       // Atualiza responsáveis (substitui o conjunto) — só quando o cliente envia o array
       if (Array.isArray(responsaveis)) {
-        db.run('DELETE FROM responsaveis WHERE crianca_id = ?', [id], () => {
-          if (responsaveis.length) {
+        branches.push(done => {
+          db.run('DELETE FROM responsaveis WHERE crianca_id = ?', [id], () => {
+            if (!responsaveis.length) return done();
             const rStmt = db.prepare('INSERT INTO responsaveis (crianca_id, tipo, nome, telefone, whatsapp, email) VALUES (?,?,?,?,?,?)');
-            responsaveis.forEach(r => rStmt.run(id, r.tipo||'outro', r.nome, r.telefone||null, r.whatsapp||null, r.email||null));
-            rStmt.finalize();
-          }
+            let p = responsaveis.length;
+            responsaveis.forEach(r => rStmt.run(id, r.tipo||'outro', r.nome, r.telefone||null, r.whatsapp||null, r.email||null,
+              () => { if (--p === 0) { rStmt.finalize(); done(); } }));
+          });
         });
       }
 
       // Atualiza endereço (substitui) — só quando enviado
       if (endereco) {
-        db.run('DELETE FROM enderecos WHERE crianca_id = ?', [id], () => {
-          db.run('INSERT INTO enderecos (crianca_id, cep, rua, numero, complemento, bairro, cidade, estado) VALUES (?,?,?,?,?,?,?,?)',
-            [id, endereco.cep||null, endereco.rua||null, endereco.numero||null, endereco.complemento||null, endereco.bairro||null, endereco.cidade||null, endereco.estado||null]);
+        branches.push(done => {
+          db.run('DELETE FROM enderecos WHERE crianca_id = ?', [id], () => {
+            db.run('INSERT INTO enderecos (crianca_id, cep, rua, numero, complemento, bairro, cidade, estado) VALUES (?,?,?,?,?,?,?,?)',
+              [id, endereco.cep||null, endereco.rua||null, endereco.numero||null, endereco.complemento||null, endereco.bairro||null, endereco.cidade||null, endereco.estado||null], () => done());
+          });
         });
       }
 
-      res.json({ message: 'Atualizada' });
+      let pendentes = branches.length;
+      const responder = () => res.json({ message: 'Atualizada' });
+      if (!pendentes) return responder();
+      branches.forEach(fn => fn(() => { if (--pendentes === 0) responder(); }));
     });
 });
 

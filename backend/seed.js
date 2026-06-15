@@ -75,10 +75,10 @@ function seed() {
     { nome: 'Beatriz Alencar Prado', nasc: '2020-04-28', sexo: 'F', turma: 3, mae: 'Fátima Alencar Prado', tel: '(17) 99413-4013', rua: 'Rua das Magnólias', num: '909', bairro: 'Boaventura', cep: '15080-080' },
   ];
 
-  // Status possíveis para frequência
+  // Status possíveis para frequência (3x presente p/ ~60% presença)
   const statusList = ['presente', 'presente', 'presente', 'ausente_justificada', 'ausente_nao_justificada'];
 
-  // Gerar datas dos últimos 5 dias úteis
+  // Gerar datas dos últimos 5 dias úteis (ordem cronológica)
   const datas = [];
   const hoje = new Date();
   let diasGerados = 0;
@@ -91,66 +91,82 @@ function seed() {
       diasGerados++;
     }
   }
-  datas.reverse(); // ordem cronológica
+  datas.reverse();
 
-  // Limpa dados existentes
-  db.run('DELETE FROM frequencias');
-  db.run('DELETE FROM enderecos');
-  db.run('DELETE FROM responsaveis');
-  db.run('DELETE FROM criancas');
-  db.run('DELETE FROM turmas');
-  db.run("DELETE FROM sqlite_sequence WHERE name IN ('turmas','criancas','responsaveis','enderecos','frequencias')");
+  // Barreira: roda todas as ops em paralelo e chama done() quando TODAS confirmarem.
+  // Substitui o antigo setTimeout(200ms) que "adivinhava" o término dos INSERTs de turma —
+  // no Turso (assíncrono, com latência de rede) isso causava criança com turma errada/nula
+  // e a função podia ser congelada pelo Vercel antes de gravar tudo.
+  const runAll = (ops, done) => {
+    let pend = ops.length;
+    if (!pend) return done();
+    ops.forEach(op => op(() => { if (--pend === 0) done(); }));
+  };
 
-  // Insere turmas
-  const turmaIds = [];
-  turmas.forEach(t => {
-    db.run('INSERT INTO turmas (nome, professor) VALUES (?,?)', [t.nome, t.professor], function() {
-      turmaIds.push(this.lastID);
+  return new Promise((resolve, reject) => {
+    // Fase 1 — limpa tudo (espera concluir antes de inserir, p/ não apagar o que acabou de entrar)
+    const limpeza = [
+      cb => db.run('DELETE FROM frequencias', cb),
+      cb => db.run('DELETE FROM enderecos', cb),
+      cb => db.run('DELETE FROM responsaveis', cb),
+      cb => db.run('DELETE FROM criancas', cb),
+      cb => db.run('DELETE FROM turmas', cb),
+      cb => db.run("DELETE FROM sqlite_sequence WHERE name IN ('turmas','criancas','responsaveis','enderecos','frequencias')", cb),
+    ];
+
+    runAll(limpeza, () => {
+      // Fase 2 — insere turmas e AGUARDA os IDs reais (sem chute de tempo)
+      const turmaIds = new Array(turmas.length);
+      const insereTurmas = turmas.map((t, idx) => cb => {
+        db.run('INSERT INTO turmas (nome, professor) VALUES (?,?)', [t.nome, t.professor], function() {
+          turmaIds[idx] = this.lastID;
+          cb();
+        });
+      });
+
+      runAll(insereTurmas, () => {
+        // Fase 3 — cada criança grava seus responsáveis/endereço/frequências e só então confirma
+        const insereCriancas = criancasData.map(c => cb => {
+          db.run('INSERT INTO criancas (nome, data_nascimento, sexo, turma_id) VALUES (?,?,?,?)',
+            [c.nome, c.nasc, c.sexo, turmaIds[c.turma]],
+            function() {
+              const criancaId = this.lastID;
+
+              // Responsáveis (mãe e/ou pai conforme o cadastro)
+              const contatos = [];
+              if (c.mae) contatos.push({ tipo: 'mae', nome: c.mae, telefone: c.tel, whatsapp: c.whats || null, email: c.email || null });
+              if (c.pai) contatos.push({ tipo: 'pai', nome: c.pai, telefone: c.tel, whatsapp: null, email: null });
+              if (!contatos.length) contatos.push({ tipo: 'outro', nome: 'Responsável', telefone: c.tel, whatsapp: null, email: null });
+
+              const subs = [];
+              contatos.forEach(r => subs.push(scb =>
+                db.run('INSERT INTO responsaveis (crianca_id, tipo, nome, telefone, whatsapp, email) VALUES (?,?,?,?,?,?)',
+                  [criancaId, r.tipo, r.nome, r.telefone, r.whatsapp, r.email], scb)));
+
+              // Endereço (São José do Rio Preto - SP)
+              subs.push(scb =>
+                db.run('INSERT INTO enderecos (crianca_id, cep, rua, numero, complemento, bairro, cidade, estado) VALUES (?,?,?,?,?,?,?,?)',
+                  [criancaId, c.cep, c.rua, c.num, null, c.bairro, 'São José do Rio Preto', 'SP'], scb));
+
+              // Frequência dos últimos 5 dias úteis
+              datas.forEach(data => {
+                const status = statusList[Math.floor(Math.random() * statusList.length)];
+                subs.push(scb =>
+                  db.run('INSERT OR IGNORE INTO frequencias (crianca_id, data, status) VALUES (?,?,?)',
+                    [criancaId, data, status], scb));
+              });
+
+              runAll(subs, cb);
+            });
+        });
+
+        runAll(insereCriancas, () => {
+          console.log(`✅ Seed concluído! ${turmas.length} turmas, ${criancasData.length} crianças, responsáveis e frequências.`);
+          resolve({ turmas: turmas.length, criancas: criancasData.length, dias: datas.length });
+        });
+      });
     });
   });
-
-  // Insere crianças, responsáveis e endereços após delay para os IDs serem gerados
-  setTimeout(() => {
-    let criancaIndex = 0;
-    let totalCriancas = 0;
-
-    criancasData.forEach(c => {
-      setTimeout(() => {
-        db.run('INSERT INTO criancas (nome, data_nascimento, sexo, turma_id) VALUES (?,?,?,?)',
-          [c.nome, c.nasc, c.sexo, turmaIds[c.turma]],
-          function() {
-            const criancaId = this.lastID;
-            totalCriancas++;
-
-            // Responsáveis (mãe e/ou pai conforme o cadastro)
-            const contatos = [];
-            if (c.mae) contatos.push({ tipo: 'mae', nome: c.mae, telefone: c.tel, whatsapp: c.whats || null, email: c.email || null });
-            if (c.pai) contatos.push({ tipo: 'pai', nome: c.pai, telefone: c.tel, whatsapp: null, email: null });
-            if (!contatos.length) contatos.push({ tipo: 'outro', nome: 'Responsável', telefone: c.tel, whatsapp: null, email: null });
-            contatos.forEach(r => {
-              db.run('INSERT INTO responsaveis (crianca_id, tipo, nome, telefone, whatsapp, email) VALUES (?,?,?,?,?,?)',
-                [criancaId, r.tipo, r.nome, r.telefone, r.whatsapp, r.email]);
-            });
-
-            // Endereço (São José do Rio Preto - SP)
-            db.run('INSERT INTO enderecos (crianca_id, cep, rua, numero, complemento, bairro, cidade, estado) VALUES (?,?,?,?,?,?,?,?)',
-              [criancaId, c.cep, c.rua, c.num, null, c.bairro, 'São José do Rio Preto', 'SP']);
-
-            // Frequência dos últimos 5 dias
-            datas.forEach(data => {
-              const status = statusList[Math.floor(Math.random() * statusList.length)];
-              db.run('INSERT OR IGNORE INTO frequencias (crianca_id, data, status) VALUES (?,?,?)',
-                [criancaId, data, status]);
-            });
-
-            if (totalCriancas === criancasData.length) {
-              console.log(`✅ Seed concluído! ${turmas.length} turmas, ${totalCriancas} crianças, responsáveis e frequências.`);
-            }
-          });
-      }, criancaIndex * 50);
-      criancaIndex++;
-    });
-  }, 200);
 }
 
 module.exports = seed;
