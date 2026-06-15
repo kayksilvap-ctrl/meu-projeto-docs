@@ -14,35 +14,6 @@
       </div>
     </div>
 
-    <div class="kpi-grid">
-      <div class="kpi-card kpi-green">
-        <div class="kpi-icon">✅</div>
-        <div class="kpi-value">{{ dash.presentes }}</div>
-        <div class="kpi-label">Presentes Hoje</div>
-        <div class="kpi-compare" :class="dash.presentes > 0 ? 'positive' : 'neutral'">{{ dash.presentes }} crianças</div>
-      </div>
-      <div class="kpi-card kpi-orange">
-        <div class="kpi-icon">📋</div>
-        <div class="kpi-value">{{ dash.ausentes_justificadas }}</div>
-        <div class="kpi-label">Faltas Justificadas</div>
-        <div class="kpi-compare neutral">do total</div>
-      </div>
-      <div class="kpi-card kpi-red">
-        <div class="kpi-icon">❌</div>
-        <div class="kpi-value">{{ dash.ausentes_nao_justificadas }}</div>
-        <div class="kpi-label">Faltas Não Justificadas</div>
-        <div class="kpi-compare neutral">do total</div>
-      </div>
-      <div class="kpi-card kpi-blue">
-        <div class="kpi-icon">📊</div>
-        <div class="kpi-value">{{ dash.taxa_presenca }}%</div>
-        <div class="kpi-label">Taxa de Frequência</div>
-        <div class="kpi-compare" :class="dash.taxa_presenca >= 80 ? 'positive' : dash.taxa_presenca >= 50 ? 'neutral' : 'negative'">
-          {{ dash.taxa_presenca >= 80 ? '✓ Boa' : dash.taxa_presenca >= 50 ? '⚠ Regular' : '✗ Baixa' }}
-        </div>
-      </div>
-    </div>
-
     <div class="dashboard-bottom">
       <div class="card">
         <h3 class="card-title">Atividade Recente</h3>
@@ -86,7 +57,6 @@ import api from '../api'
 
 const dataFiltro = ref(new Date().toISOString().split('T')[0])
 const turmaFiltro = ref('')
-const dash = ref({ total_criancas: 0, presentes: 0, ausentes_justificadas: 0, ausentes_nao_justificadas: 0, taxa_presenca: 0 })
 const frequencias = ref([])
 const turmas = ref([])
 
@@ -96,11 +66,9 @@ async function carregar() {
   const params = { data: dataFiltro.value }
   if (turmaFiltro.value) params.turma_id = turmaFiltro.value
 
-  const [d, f] = await Promise.all([
-    api.getDashboard(params).catch(() => ({ data: dash.value })),
+  const [f] = await Promise.all([
     api.getFrequencias(params).catch(() => ({ data: [] }))
   ])
-  dash.value = d.data
   frequencias.value = f.data
 }
 
@@ -118,25 +86,6 @@ onMounted(async () => {
 .page-subtitle { font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px; }
 .header-actions { display: flex; gap: 8px; }
 .filter-select, .filter-input { padding: 8px 12px; border: 1px solid #E5E7EB; border-radius: var(--radius-sm); font-size: 0.82rem; font-family: inherit; background: white; color: var(--text); outline: none; }
-
-.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
-@media (max-width: 960px) { .kpi-grid { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 600px) { .kpi-grid { grid-template-columns: 1fr; } }
-
-.kpi-card { background: white; border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow); border-top: 3px solid; transition: var(--transition); }
-.kpi-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
-.kpi-green { border-top-color: var(--green); }
-.kpi-orange { border-top-color: var(--orange); }
-.kpi-red { border-top-color: var(--red); }
-.kpi-blue { border-top-color: var(--blue); }
-
-.kpi-icon { font-size: 1.5rem; margin-bottom: 8px; }
-.kpi-value { font-size: 1.8rem; font-weight: 800; color: var(--text); line-height: 1; }
-.kpi-label { font-size: 0.8rem; color: var(--text-secondary); margin-top: 6px; }
-.kpi-compare { font-size: 0.72rem; margin-top: 4px; font-weight: 500; }
-.kpi-compare.positive { color: var(--green); }
-.kpi-compare.neutral { color: var(--text-secondary); }
-.kpi-compare.negative { color: var(--red); }
 
 .dashboard-bottom { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
 @media (max-width: 960px) { .dashboard-bottom { grid-template-columns: 1fr; } }

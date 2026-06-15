@@ -86,20 +86,46 @@ router.post('/', (req, res) => {
 });
 
 router.put('/:id', (req, res) => {
-  const { nome, data_nascimento, sexo, turma_id, observacoes } = req.body;
+  const { nome, data_nascimento, sexo, turma_id, observacoes, responsaveis, endereco } = req.body;
   if (!nome?.trim()) return res.status(400).json({ error: 'Nome obrigatório' });
+  const id = req.params.id;
   db.run('UPDATE criancas SET nome=?, data_nascimento=?, sexo=?, turma_id=?, observacoes=? WHERE id=?',
-    [nome.trim(), data_nascimento||null, sexo||null, turma_id||null, observacoes||null, req.params.id], function(err) {
+    [nome.trim(), data_nascimento||null, sexo||null, turma_id||null, observacoes||null, id], function(err) {
       if (err) return res.status(500).json({ error: err.message });
       if (this.changes === 0) return res.status(404).json({ error: 'Não encontrada' });
+
+      // Atualiza responsáveis (substitui o conjunto) — só quando o cliente envia o array
+      if (Array.isArray(responsaveis)) {
+        db.run('DELETE FROM responsaveis WHERE crianca_id = ?', [id], () => {
+          if (responsaveis.length) {
+            const rStmt = db.prepare('INSERT INTO responsaveis (crianca_id, tipo, nome, telefone, whatsapp, email) VALUES (?,?,?,?,?,?)');
+            responsaveis.forEach(r => rStmt.run(id, r.tipo||'outro', r.nome, r.telefone||null, r.whatsapp||null, r.email||null));
+            rStmt.finalize();
+          }
+        });
+      }
+
+      // Atualiza endereço (substitui) — só quando enviado
+      if (endereco) {
+        db.run('DELETE FROM enderecos WHERE crianca_id = ?', [id], () => {
+          db.run('INSERT INTO enderecos (crianca_id, cep, rua, numero, complemento, bairro, cidade, estado) VALUES (?,?,?,?,?,?,?,?)',
+            [id, endereco.cep||null, endereco.rua||null, endereco.numero||null, endereco.complemento||null, endereco.bairro||null, endereco.cidade||null, endereco.estado||null]);
+        });
+      }
+
       res.json({ message: 'Atualizada' });
     });
 });
 
 router.delete('/:id', (req, res) => {
-  db.run('DELETE FROM criancas WHERE id = ?', [req.params.id], function(err) {
+  const id = req.params.id;
+  db.run('DELETE FROM criancas WHERE id = ?', [id], function(err) {
     if (err) return res.status(500).json({ error: err.message });
     if (this.changes === 0) return res.status(404).json({ error: 'Não encontrada' });
+    // remove os dados vinculados para não deixar registros órfãos
+    db.run('DELETE FROM responsaveis WHERE crianca_id = ?', [id]);
+    db.run('DELETE FROM enderecos WHERE crianca_id = ?', [id]);
+    db.run('DELETE FROM frequencias WHERE crianca_id = ?', [id]);
     res.json({ message: 'Removida' });
   });
 });

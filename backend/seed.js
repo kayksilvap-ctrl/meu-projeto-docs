@@ -122,9 +122,11 @@ function seed() {
             const criancaId = this.lastID;
             totalCriancas++;
 
-            // Responsável
+            // Responsáveis (mãe e/ou pai conforme o cadastro)
             const contatos = [];
-            contatos.push({ tipo: c.pai ? 'pai' : 'mae', nome: c.mae || c.pai, telefone: c.tel, whatsapp: c.whats || null, email: c.email || null });
+            if (c.mae) contatos.push({ tipo: 'mae', nome: c.mae, telefone: c.tel, whatsapp: c.whats || null, email: c.email || null });
+            if (c.pai) contatos.push({ tipo: 'pai', nome: c.pai, telefone: c.tel, whatsapp: null, email: null });
+            if (!contatos.length) contatos.push({ tipo: 'outro', nome: 'Responsável', telefone: c.tel, whatsapp: null, email: null });
             contatos.forEach(r => {
               db.run('INSERT INTO responsaveis (crianca_id, tipo, nome, telefone, whatsapp, email) VALUES (?,?,?,?,?,?)',
                 [criancaId, r.tipo, r.nome, r.telefone, r.whatsapp, r.email]);

@@ -1,17 +1,31 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 
 const turmasRouter = require('./routes/turmas');
 const criancasRouter = require('./routes/criancas');
 const frequenciasRouter = require('./routes/frequencias');
+const seed = require('./seed');
 const db = require('./database');
 
 const app = express();
 
+// Cabeçalhos de segurança (CSP/COEP off p/ não bloquear o front e libs externas)
+app.use(helmet({ contentSecurityPolicy: false, crossOriginEmbedderPolicy: false }));
 // CORS: em produção defina CORS_ORIGIN (ex.: https://seu-projeto.vercel.app)
 app.use(cors({ origin: process.env.CORS_ORIGIN || true }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Rate limiting simples (janela de 1 min)
+let _reqCount = 0;
+const _MAX_REQ = 1000;
+setInterval(() => { _reqCount = 0; }, 60000).unref?.();
+app.use((req, res, next) => {
+  _reqCount++;
+  if (_reqCount > _MAX_REQ) return res.status(429).json({ error: 'Muitas requisições. Tente novamente em 1 minuto.' });
+  next();
+});
 
 // Aceita as rotas com ou sem o prefixo /api (local usa /api/..., no Vercel o rewrite preserva o caminho original)
 app.use((req, res, next) => {
@@ -86,11 +100,18 @@ app.post('/import', (req, res) => {
   });
 });
 
+app.post('/seed', (req, res) => {
+  seed();
+  res.json({ message: '🌱 Seed iniciado! Dados de demonstração serão carregados em alguns segundos.' });
+});
+
 app.delete('/reset', (req, res) => {
   db.serialize(() => {
     db.run('DELETE FROM frequencias'); db.run('DELETE FROM enderecos'); db.run('DELETE FROM responsaveis'); db.run('DELETE FROM criancas'); db.run('DELETE FROM turmas');
-    db.run("DELETE FROM sqlite_sequence WHERE name IN ('turmas','criancas','frequencias')");
-    res.json({ message: 'Todos os dados foram resetados' });
+    // responde só após o último delete concluir (evita race no modo assíncrono)
+    db.run("DELETE FROM sqlite_sequence WHERE name IN ('turmas','criancas','frequencias')", [], () => {
+      res.json({ message: 'Todos os dados foram resetados' });
+    });
   });
 });
 

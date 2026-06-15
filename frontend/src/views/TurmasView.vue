@@ -9,12 +9,12 @@
     </div>
 
     <div class="turmas-grid">
-      <div v-for="t in turmas" :key="t.id" class="turma-card">
+      <div v-for="t in turmas" :key="t.id" class="turma-card" @click="abrirTurma(t)" style="cursor: pointer;">
         <div class="turma-card-header">
           <div class="turma-icon">🏫</div>
           <div class="turma-actions">
-            <button class="btn-icon" @click="editar(t)">✏️</button>
-            <button class="btn-icon" @click="excluir(t)">🗑️</button>
+            <button class="btn-icon" @click.stop="editar(t)">✏️</button>
+            <button class="btn-icon" @click.stop="excluir(t)">🗑️</button>
           </div>
         </div>
         <h3 class="turma-nome">{{ t.nome }}</h3>
@@ -53,8 +53,10 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import api from '../api'
 
+const router = useRouter()
 const turmas = ref([])
 const showForm = ref(false)
 const editando = ref(false)
@@ -62,6 +64,7 @@ const editId = ref(null)
 const form = ref({ nome: '', professor: '' })
 
 async function carregar() { turmas.value = (await api.getTurmas().catch(() => ({ data: [] }))).data }
+function abrirTurma(t) { router.push(`/turmas/${t.id}`) }
 function editar(t) { form.value = { nome: t.nome, professor: t.professor || '' }; editId.value = t.id; editando.value = true; showForm.value = true }
 function fechar() { showForm.value = false; editando.value = false; editId.value = null; form.value = { nome: '', professor: '' } }
 async function salvar() {

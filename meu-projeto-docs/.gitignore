@@ -1,9 +1,0 @@
-node_modules/
-backend/data/
-*.db
-package-lock.json
-.temp
-backend/api/node_modules/
-frontend/dist/
-dist/
-.vercel

@@ -1,7 +1,13 @@
 <template>
-  <div class="app-shell">
+  <!-- Login: tela cheia sem sidebar nem topbar -->
+  <div v-if="isLoginPage" class="login-wrapper">
+    <router-view />
+  </div>
+
+  <!-- Aplicação: com sidebar + topbar -->
+  <div v-else class="app-shell">
     <AppSidebar ref="sidebarRef" />
-    <div class="app-main" :class="{'sidebar-collapsed': sidebarCollapsed}">
+    <div class="app-main">
       <AppTopbar @toggle-menu="toggleMenu" @toggle-sidebar="toggleSidebar" />
       <main class="app-content">
         <router-view v-slot="{ Component, route }">
@@ -15,12 +21,14 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import AppSidebar from './components/AppSidebar.vue'
 import AppTopbar from './components/AppTopbar.vue'
 
+const route = useRoute()
 const sidebarRef = ref(null)
-const sidebarCollapsed = ref(window.innerWidth <= 1200)
+const isLoginPage = computed(() => route.path === '/login')
 
 function toggleMenu() {
   if (sidebarRef.value) sidebarRef.value.toggleMenu()
@@ -28,28 +36,14 @@ function toggleMenu() {
 
 function toggleSidebar() {
   if (window.innerWidth > 960) {
-    sidebarCollapsed.value = !sidebarCollapsed.value
-    document.documentElement.style.setProperty('--sidebar-width', sidebarCollapsed.value ? '70px' : '250px')
+    const currentlyCollapsed = sidebarRef.value?.sidebarCollapsed
+    const newWidth = currentlyCollapsed ? '250px' : '70px'
+    document.documentElement.style.setProperty('--sidebar-width', newWidth)
+    if (sidebarRef.value) sidebarRef.value.sidebarCollapsed = !currentlyCollapsed
   } else {
     toggleMenu()
   }
 }
-
-function checkWidth() {
-  if (window.innerWidth <= 960) {
-    sidebarCollapsed.value = false
-    document.documentElement.style.setProperty('--sidebar-width', '0px')
-  } else if (window.innerWidth <= 1200) {
-    sidebarCollapsed.value = true
-    document.documentElement.style.setProperty('--sidebar-width', '70px')
-  } else {
-    sidebarCollapsed.value = false
-    document.documentElement.style.setProperty('--sidebar-width', '250px')
-  }
-}
-
-onMounted(() => { checkWidth(); window.addEventListener('resize', checkWidth) })
-onUnmounted(() => window.removeEventListener('resize', checkWidth))
 </script>
 
 <style>
@@ -86,6 +80,7 @@ body {
   font-size: 16px;
   line-height: 1.5;
 }
+.login-wrapper { height: 100vh; overflow: auto; }
 .app-shell { display: flex; height: 100vh; overflow: hidden; }
 .app-main {
   flex: 1; display: flex; flex-direction: column;
