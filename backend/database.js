@@ -22,6 +22,10 @@ const SCHEMA_SQL = [
   `CREATE TABLE IF NOT EXISTS frequencias (id INTEGER PRIMARY KEY AUTOINCREMENT, crianca_id INTEGER NOT NULL, data TEXT NOT NULL, status TEXT NOT NULL, motivo TEXT, observacao TEXT, created_at TEXT DEFAULT (datetime('now','localtime')), UNIQUE(crianca_id, data))`,
   `CREATE INDEX IF NOT EXISTS idx_frequencias_data ON frequencias(data)`,
   `CREATE INDEX IF NOT EXISTS idx_frequencias_crianca ON frequencias(crianca_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_frequencias_data_status ON frequencias(data,status)`,
+  `CREATE INDEX IF NOT EXISTS idx_criancas_turma ON criancas(turma_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_responsaveis_crianca ON responsaveis(crianca_id)`,
+  `CREATE INDEX IF NOT EXISTS idx_enderecos_crianca ON enderecos(crianca_id)`,
 ];
 
 module.exports = createDatabase();

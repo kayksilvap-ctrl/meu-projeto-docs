@@ -239,22 +239,17 @@ async function finalizarChamada() {
   }
 
   try {
-    // Salva TODAS as presenças em paralelo (antes era uma a uma, ~0,2s cada =
-    // vários segundos numa turma cheia). allSettled p/ não abortar tudo se uma falhar.
-    const resultados = await Promise.allSettled(
-      criancas.value.map(c => api.registrarFrequencia({
+    // Salva TODAS as presenças em UM ÚNICO request (batch).
+    // Com better-sqlite3 + transação, 30 inserts levam < 1ms.
+    // Antes era 1 request por criança = 30 requests para 30 alunos.
+    await api.registrarFrequenciaBatch({
+      registros: criancas.value.map(c => ({
         crianca_id: c.id,
         data: hojeISO,
         status: c._status,
         motivo: c._motivo || undefined
       }))
-    )
-
-    const erros = resultados.filter(r => r.status === 'rejected').length
-    if (erros) {
-      alert(`Atenção: ${erros} de ${criancas.value.length} registro(s) não salvaram. Verifique a conexão e tente finalizar novamente.`)
-      return // não avança para a tela de sucesso se algo falhou
-    }
+    })
 
     statsFinal.value = resumo
     etapa.value = 'finalizado'

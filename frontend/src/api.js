@@ -36,6 +36,7 @@ export default {
   deleteCrianca: (id) => http.delete(`/criancas/${id}`),
   getFrequencias: (params) => http.get('/frequencias', { params }),
   registrarFrequencia: (d) => http.post('/frequencias', d),
+  registrarFrequenciaBatch: (d) => http.post('/frequencias/batch', d),
   getDashboard: (params) => http.get('/frequencias/dashboard', { params }),
   getRelatorios: () => http.get('/frequencias/relatorios'),
   getResumoFrequencia: (params) => http.get('/frequencias/resumo', { params }),

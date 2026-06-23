@@ -165,4 +165,62 @@ router.get('/resumo', (req, res) => {
   });
 });
 
+// ===== ENDPOINT BATCH (salvamento instantâneo) =====
+// Salva múltiplas frequências em uma ÚNICA transação.
+// Com better-sqlite3 + WAL, 30 inserts em transação levam < 1ms.
+// Antes o frontend fazia 1 request por criança = 30 requests para 30 alunos.
+router.post('/batch', (req, res) => {
+  const { registros } = req.body;
+  if (!registros || !Array.isArray(registros) || !registros.length) {
+    return res.status(400).json({ error: 'Array de registros obrigatório' });
+  }
+
+  // Valida todos antes de começar
+  for (const r of registros) {
+    if (!r.crianca_id || !r.data || !r.status) {
+      return res.status(400).json({ error: 'crianca_id, data e status obrigatórios em todos os registros' });
+    }
+    if (!['presente','ausente_justificada','ausente_nao_justificada'].includes(r.status)) {
+      return res.status(400).json({ error: `Status inválido para criança ${r.crianca_id}: ${r.status}` });
+    }
+  }
+
+  // Se for better-sqlite3 (síncrono), faz tudo em transação
+  if (db._db) {
+    try {
+      const insert = db._db.prepare(
+        `INSERT OR REPLACE INTO frequencias (crianca_id, data, status, motivo, observacao, created_at)
+         VALUES (?, ?, ?, ?, ?, datetime('now','localtime'))`
+      );
+      const transacao = db._db.transaction((items) => {
+        for (const r of items) {
+          insert.run(r.crianca_id, r.data, r.status, r.motivo || null, r.observacao || null);
+        }
+      });
+      transacao(registros);
+      return res.json({ message: `${registros.length} registros salvos` });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
+  }
+
+  // Fallback para Turso/outros: executa em série com barreira
+  const stmt = db.prepare(
+    `INSERT OR REPLACE INTO frequencias (crianca_id, data, status, motivo, observacao, created_at)
+     VALUES (?, ?, ?, ?, ?, datetime('now','localtime'))`
+  );
+  let pend = registros.length;
+  let erros = 0;
+  registros.forEach(r => {
+    stmt.run(r.crianca_id, r.data, r.status, r.motivo || null, r.observacao || null, function(err) {
+      if (err) erros++;
+      if (--pend === 0) {
+        stmt.finalize();
+        if (erros) return res.status(500).json({ error: `${erros} registro(s) falharam` });
+        res.json({ message: `${registros.length} registros salvos` });
+      }
+    });
+  });
+});
+
 module.exports = router;

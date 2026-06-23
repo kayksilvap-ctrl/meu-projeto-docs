@@ -5,7 +5,6 @@ const helmet = require('helmet');
 const turmasRouter = require('./routes/turmas');
 const criancasRouter = require('./routes/criancas');
 const frequenciasRouter = require('./routes/frequencias');
-const seed = require('./seed');
 const db = require('./database');
 
 const app = express();
@@ -117,14 +116,6 @@ app.post('/import', (req, res) => {
   });
 });
 
-app.post('/seed', (req, res) => {
-  // Aguarda o seed CONCLUIR antes de responder. No Vercel a função serverless pode ser
-  // congelada assim que a resposta sai; se respondêssemos antes, os INSERTs do seed
-  // (assíncronos no Turso) podiam ser interrompidos no meio. Agora a resposta confirma o fim.
-  Promise.resolve(seed())
-    .then(r => res.json({ message: `🌱 Seed concluído! ${r.turmas} turmas e ${r.criancas} crianças carregadas.`, ...r }))
-    .catch(err => res.status(500).json({ error: 'Falha no seed: ' + err.message }));
-});
 
 app.delete('/reset', (req, res) => {
   // Responde só depois que TODOS os deletes confirmarem (no Turso as Promises não têm ordem
@@ -151,22 +142,5 @@ app.get('/estatisticas', (req, res) => {
     res.json({ dias: rows || [], total_presentes: tp, total_ausentes: ta, media_presenca: (tp + ta) > 0 ? Math.round((tp / (tp + ta)) * 100) : 0 });
   });
 });
-
-// ===== Rede de segurança da DEMO (apresentação) =====
-// Em modo VOLÁTIL (:memory: no Vercel sem Turso) os dados somem a cada cold start.
-// Para nunca cair numa tela vazia durante a apresentação, semeamos a demo
-// automaticamente quando a instância volátil sobe SEM dados.
-// IMPORTANTE: só roda em modo 'memoria'. Em modo PERSISTENTE (Turso/arquivo) NUNCA
-// executa — dados reais ficam protegidos e o seed permanece só manual (POST /seed).
-if (db.mode === 'memoria') {
-  Promise.resolve(db.ready ? db.ready() : true).then(() => {
-    db.get('SELECT COUNT(*) AS c FROM turmas', (err, row) => {
-      if (!err && row && (row.c || 0) === 0) {
-        console.log('🌱 Banco volátil vazio — carregando a demo automaticamente...');
-        Promise.resolve(seed()).catch(e => console.error('Auto-seed falhou:', e.message));
-      }
-    });
-  }).catch(() => {});
-}
 
 module.exports = app;
