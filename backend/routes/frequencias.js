@@ -167,7 +167,10 @@ router.get('/resumo', (req, res) => {
 
 // ===== ENDPOINT BATCH (salvamento instantâneo) =====
 // Salva múltiplas frequências em uma ÚNICA transação.
-// Com better-sqlite3 + WAL, 30 inserts em transação levam < 1ms.
+// Suporta 3 modos:
+//   better-sqlite3 -> transação síncrona (< 1ms para 30 inserts)
+//   Turso          -> transação assíncrona com BEGIN/COMMIT
+//   sqlite3        -> transação com serialize()
 // Antes o frontend fazia 1 request por criança = 30 requests para 30 alunos.
 router.post('/batch', (req, res) => {
   const { registros } = req.body;
@@ -185,42 +188,54 @@ router.post('/batch', (req, res) => {
     }
   }
 
-  // Se for better-sqlite3 (síncrono), faz tudo em transação
-  if (db._db) {
-    try {
-      const insert = db._db.prepare(
-        `INSERT OR REPLACE INTO frequencias (crianca_id, data, status, motivo, observacao, created_at)
-         VALUES (?, ?, ?, ?, ?, datetime('now','localtime'))`
-      );
-      const transacao = db._db.transaction((items) => {
-        for (const r of items) {
-          insert.run(r.crianca_id, r.data, r.status, r.motivo || null, r.observacao || null);
-        }
-      });
-      transacao(registros);
-      return res.json({ message: `${registros.length} registros salvos` });
-    } catch (err) {
-      return res.status(500).json({ error: err.message });
-    }
-  }
+  const SQL = `INSERT OR REPLACE INTO frequencias (crianca_id, data, status, motivo, observacao, created_at)
+               VALUES (?, ?, ?, ?, ?, datetime('now','localtime'))`;
 
-  // Fallback para Turso/outros: executa em série com barreira
-  const stmt = db.prepare(
-    `INSERT OR REPLACE INTO frequencias (crianca_id, data, status, motivo, observacao, created_at)
-     VALUES (?, ?, ?, ?, ?, datetime('now','localtime'))`
-  );
-  let pend = registros.length;
-  let erros = 0;
-  registros.forEach(r => {
-    stmt.run(r.crianca_id, r.data, r.status, r.motivo || null, r.observacao || null, function(err) {
-      if (err) erros++;
-      if (--pend === 0) {
+  // ===== 1) better-sqlite3 via db.mode ====
+  // mode 'sqlite' = local com better-sqlite3 (ou sqlite3)
+  // mode 'memoria' = Vercel sem Turso (volátil)
+  // Ambos usam db.run/get/all que são síncronos
+  if (db.mode === 'sqlite' || db.mode === 'memoria') {
+    db.serialize(() => {
+      try {
+        db.run('BEGIN TRANSACTION');
+        const stmt = db.prepare(SQL);
+        registros.forEach(r => {
+          stmt.run(r.crianca_id, r.data, r.status, r.motivo || null, r.observacao || null);
+        });
         stmt.finalize();
-        if (erros) return res.status(500).json({ error: `${erros} registro(s) falharam` });
+        db.run('COMMIT');
         res.json({ message: `${registros.length} registros salvos` });
+      } catch (err) {
+        res.status(500).json({ error: err.message });
       }
     });
-  });
+    return;
+  }
+
+  // ===== 2) Turso (assíncrono) — transação via BEGIN/COMMIT =====
+  if (db.mode === 'turso' && db._turso) {
+    (async () => {
+      try {
+        await db._turso.execute({ sql: 'BEGIN TRANSACTION' });
+        for (const r of registros) {
+          await db._turso.execute({
+            sql: SQL,
+            args: [r.crianca_id, r.data, r.status, r.motivo || null, r.observacao || null]
+          });
+        }
+        await db._turso.execute({ sql: 'COMMIT' });
+        res.json({ message: `${registros.length} registros salvos` });
+      } catch (err) {
+        try { await db._turso.execute({ sql: 'ROLLBACK' }); } catch (_) {}
+        res.status(500).json({ error: err.message });
+      }
+    })();
+    return;
+  }
+
+  // ===== 3) Fallback genérico (no-db etc) =====
+  res.status(500).json({ error: 'Banco de dados não disponível para escrita em lote' });
 });
 
 module.exports = router;
