@@ -1,6 +1,20 @@
 const path = require('path');
 const fs = require('fs');
 
+// Carrega .env local se existir (apenas fora do Vercel)
+try {
+  const envPath = path.join(__dirname, '.env');
+  if (fs.existsSync(envPath)) {
+    const lines = fs.readFileSync(envPath, 'utf-8').split('\n');
+    lines.forEach(line => {
+      const [key, ...vals] = line.trim().split('=');
+      if (key && vals.length && !process.env[key]) {
+        process.env[key] = vals.join('=');
+      }
+    });
+  }
+} catch (_) {}
+
 // Ordem de escolha: Turso (produção/Vercel) > better-sqlite3 (síncrono) > sqlite3 (fallback local)
 let BetterDatabase;
 
@@ -11,7 +25,7 @@ try {
 }
 
 const isVercel = process.env.VERCEL === '1' || process.env.AWS_LAMBDA_FUNCTION_NAME;
-const useTurso = isVercel && process.env.TURSO_DATABASE_URL && process.env.TURSO_AUTH_TOKEN;
+const useTurso = !!process.env.TURSO_DATABASE_URL && !!process.env.TURSO_AUTH_TOKEN;
 
 // Schema definitions
 const SCHEMA_SQL = [

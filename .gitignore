@@ -7,3 +7,5 @@ backend/api/node_modules/
 frontend/dist/
 dist/
 .vercel
+.env
+backend/.env
