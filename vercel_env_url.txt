@@ -1,0 +1,1 @@
+libsql://anjo-guarda-db-kayksilvap-ctrl.turso.io
